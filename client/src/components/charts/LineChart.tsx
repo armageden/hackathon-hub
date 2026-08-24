@@ -147,7 +147,7 @@ export const LineChart = forwardRef<HTMLDivElement, LineChartProps>(
                 dot={line.dot ?? false}
                 activeDot={{ r: 6, strokeWidth: 2 }}
                 animationDuration={animate ? animationDuration : 0}
-                animationEasing={'easeOutQuart' as unknown as 'ease-out'}
+                animationEasing="ease-out"
                 isAnimationActive={animate}
               />
             ))}

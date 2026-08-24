@@ -156,7 +156,7 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(
                 {...({ barGap, categoryGap } as object)}
                 isAnimationActive={animate}
                 animationDuration={animate ? animationDuration : 0}
-                animationEasing={'easeOutQuart' as unknown as 'ease-out'}
+                animationEasing="ease-out"
               >
                 {data.map((_, i) => (
                   <Cell key={`cell-${bar.key}-${i}`} fill={bar.color || colors[index % colors.length]} />

@@ -427,11 +427,11 @@ export const hardwareRepository = {
         [eventId]
       ),
       pool.query(
-        `SELECT hi.id, hi.name, hi.category, hi.model, hi.serial_number, hi.quantity_available, hi.condition, hi.status, hi.location, hi.notes, hi.created_at, hi.updated_at, COUNT(hc.id) as checkout_count
+        `SELECT hi.id, hi.event_id, hi.name, hi.category, hi.model, hi.serial_number, hi.quantity_available, hi.condition, hi.status, hi.location, hi.notes, hi.created_at, hi.updated_at, COUNT(hc.id) as checkout_count
          FROM hardware_items hi
          LEFT JOIN hardware_checkouts hc ON hi.id = hc.hardware_item_id
          WHERE hi.event_id = $1
-         GROUP BY hi.id
+         GROUP BY hi.id, hi.event_id
          ORDER BY checkout_count DESC
          LIMIT 10`,
         [eventId]

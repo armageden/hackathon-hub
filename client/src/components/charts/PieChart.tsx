@@ -132,7 +132,7 @@ export const PieChart = forwardRef<HTMLDivElement, PieChartProps>(
               label={label ? CustomLabel : false}
               isAnimationActive={animate}
               animationDuration={animate ? animationDuration : 0}
-              animationEasing={'easeOutQuart' as unknown as 'ease-out'}
+              animationEasing="ease-out"
             >
               {data.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={chartColors[index % chartColors.length]} />

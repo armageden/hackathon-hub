@@ -640,7 +640,14 @@ export default function TeamsPage() {
                           </div>
                         )}
                         <div className="mt-2 flex items-center gap-2">
-                          <span className="text-xs text-gray-600">ID: {p.user_id.slice(0, 8)}...</span>
+                          <button
+                            type="button"
+                            onClick={() => navigator.clipboard.writeText(p.user_id)}
+                            className="text-xs text-gray-500 hover:text-gray-300 font-mono transition-colors"
+                            title="Click to copy full ID"
+                          >
+                            ID: {p.user_id.slice(0, 8)}… 📋
+                          </button>
                           {p.looking_for_team && (
                             <span className="text-xs bg-emerald-900/50 text-emerald-300 rounded-full px-2 py-0.5">
                               Looking for team

@@ -126,7 +126,7 @@ export const RadarChart = forwardRef<HTMLDivElement, RadarChartProps>(
                 dot={false}
                 isAnimationActive={animate}
                 animationDuration={animate ? animationDuration : 0}
-                animationEasing={'easeOutQuart' as unknown as 'ease-out'}
+                animationEasing="ease-out"
               />
             ))}
           </RechartsRadarChart>

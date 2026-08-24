@@ -9,7 +9,7 @@ VALUES (
   'a0000000-0000-0000-0000-000000000001',
   'admin@hackathon.com',
   '$2a$12$nWXtY4xYzMieXyhRHzyLz.X6M8wFktL.zSoVlXlUNtI515hP.E9i6',
-  'Admin User',
+  'Farhan Ahmed',
   'admin'
 ) ON CONFLICT (email) DO NOTHING;
 
@@ -19,7 +19,7 @@ VALUES (
   'a0000000-0000-0000-0000-000000000002',
   'user@hackathon.com',
   '$2a$12$aHuKsazJmgdbH/pDFu7cFe1daMSNkIrc/SdlN7SWVibHR6gNY9VaO',
-  'Regular User',
+  'Sarah Chen',
   'user'
 ) ON CONFLICT (email) DO NOTHING;
 
