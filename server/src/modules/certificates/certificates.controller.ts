@@ -37,7 +37,7 @@ export const certificatesController = {
       const certificate = await certificatesService.createCertificate(
         eventId, user_id, certificate_type, metadata
       );
-      const issued = await certificatesService.issueCertificate(certificate.id);
+      const issued = await certificatesService.issueCertificate(eventId, certificate.id);
       res.status(201).json({ success: true, data: { certificate: issued } });
     } catch (err) {
       next(err);
@@ -46,10 +46,12 @@ export const certificatesController = {
 
   async revokeCertificate(req: Request, res: Response, next: NextFunction) {
     try {
+      const eventId = p(req, "eventId");
       const certificateId = p(req, "certificateId");
+      if (!eventId) throw new ValidationError("Event ID is required");
       if (!certificateId) throw new ValidationError("Certificate ID is required");
 
-      const certificate = await certificatesService.revokeCertificate(certificateId);
+      const certificate = await certificatesService.revokeCertificate(eventId, certificateId);
       res.json({ success: true, data: { certificate } });
     } catch (err) {
       next(err);

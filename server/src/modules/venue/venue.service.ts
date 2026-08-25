@@ -177,16 +177,25 @@ export const venueService = {
     const effectiveEnd = data.ends_at ?? existing.ends_at;
     validateRange(effectiveStart, effectiveEnd);
 
+    // A repointed location must belong to this event — the create path checks
+    // ownership, the update path must too, or cross-event bookings slip past
+    // both events' overlap checks.
+    if (data.venue_location_id !== undefined && data.venue_location_id !== existing.venue_location_id) {
+      const location = await venueRepository.findLocationById(eventId, data.venue_location_id);
+      if (!location) throw new NotFoundError("Venue location not found in this event");
+    }
+    const targetLocationId = data.venue_location_id ?? existing.venue_location_id;
+
     if (data.assignable_type !== undefined || data.team_id !== undefined || data.project_submission_id !== undefined) {
       validateAssignmentEntities({
-        venue_location_id: existing.venue_location_id,
+        venue_location_id: targetLocationId,
         assignable_type: data.assignable_type ?? existing.assignable_type,
         team_id: data.team_id ?? undefined,
         project_submission_id: data.project_submission_id ?? undefined,
       });
       await validateEntityInEvent(
         {
-          venue_location_id: existing.venue_location_id,
+          venue_location_id: targetLocationId,
           assignable_type: data.assignable_type ?? existing.assignable_type,
           team_id: data.team_id,
           project_submission_id: data.project_submission_id,
@@ -197,7 +206,6 @@ export const venueService = {
       );
     }
 
-    const targetLocationId = data.venue_location_id ?? existing.venue_location_id;
     const conflict = await venueRepository.findConflictingAssignment({
       eventId,
       locationId: targetLocationId,

@@ -14,7 +14,7 @@ import {
 import type { ProjectSubmission, LeaderboardEntry } from "@/types/api";
 import * as judgingApi from "./judging.api";
 import { formatDateTime, formatScore } from "@/lib/formatters";
-import { useActiveEventId } from "@/app/demo-mode";
+import { useScopedEventId } from "@/app/providers";
 
 const DIMENSIONS = [
   { key: "score_innovation", label: "Innovation", weight: "30%" },
@@ -33,8 +33,8 @@ interface Message {
 }
 
 export default function JudgingPage() {
-  const EVENT_ID = useActiveEventId();
-  const { isJudge, isOrganizer } = useEventRole();
+  const EVENT_ID = useScopedEventId();
+  const { isJudge, isOrganizer } = useEventRole(EVENT_ID);
   const canScore = isJudge || isOrganizer;
 
   // Null until the user picks a tab; role decides the default once loaded.

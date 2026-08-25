@@ -46,14 +46,14 @@ export const certificatesService = {
     return cert;
   },
 
-  async issueCertificate(certificateId: string) {
-    const cert = await certificatesRepository.issueCertificate(certificateId);
+  async issueCertificate(eventId: string, certificateId: string) {
+    const cert = await certificatesRepository.issueCertificate(eventId, certificateId);
     if (!cert) throw new NotFoundError("Certificate not found or already issued/revoked");
     return cert;
   },
 
-  async revokeCertificate(certificateId: string) {
-    const cert = await certificatesRepository.revokeCertificate(certificateId);
+  async revokeCertificate(eventId: string, certificateId: string) {
+    const cert = await certificatesRepository.revokeCertificate(eventId, certificateId);
     if (!cert) throw new NotFoundError("Certificate not found or already revoked");
     return cert;
   },

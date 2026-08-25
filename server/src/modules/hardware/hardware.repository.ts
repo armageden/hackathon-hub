@@ -370,36 +370,73 @@ export const hardwareRepository = {
   },
 
   async createDamageReport(eventId: string, data: CreateDamageReportRequest, reportedBy: string): Promise<HardwareDamageReport> {
-    const result = await pool.query(
-      `INSERT INTO hardware_damage_reports (event_id, hardware_item_id, checkout_id, reported_by, description, severity)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING *`,
-      [eventId, data.hardware_item_id, data.checkout_id || null, reportedBy, data.description, data.severity]
-    );
+    // Report, item state, and checkout state land together or not at all.
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
 
-    // Update item status to damaged
-    await pool.query(
-      `UPDATE hardware_items SET status = 'damaged', condition = 'damaged', updated_at = NOW() WHERE id = $1`,
-      [data.hardware_item_id]
-    );
-
-    // If there's an active checkout, update its status
-    if (data.checkout_id) {
-      await pool.query(
-        `UPDATE hardware_checkouts SET status = 'damaged' WHERE id = $1`,
-        [data.checkout_id]
+      const result = await client.query(
+        `INSERT INTO hardware_damage_reports (event_id, hardware_item_id, checkout_id, reported_by, description, severity)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *`,
+        [eventId, data.hardware_item_id, data.checkout_id || null, reportedBy, data.description, data.severity]
       );
-    }
 
-    return result.rows[0];
+      // Update item status to damaged
+      await client.query(
+        `UPDATE hardware_items SET status = 'damaged', condition = 'damaged', updated_at = NOW() WHERE id = $1`,
+        [data.hardware_item_id]
+      );
+
+      // If there's an active checkout, update its status
+      if (data.checkout_id) {
+        await client.query(
+          `UPDATE hardware_checkouts SET status = 'damaged' WHERE id = $1`,
+          [data.checkout_id]
+        );
+      }
+
+      await client.query("COMMIT");
+      return result.rows[0];
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   },
 
   async resolveDamageReport(eventId: string, reportId: string, resolvedBy: string): Promise<HardwareDamageReport | null> {
-    const result = await pool.query(
-      `UPDATE hardware_damage_reports SET status = 'resolved', resolved_at = NOW() WHERE id = $1 AND event_id = $2 RETURNING *`,
-      [reportId, eventId]
-    );
-    return result.rows[0] || null;
+    // Resolving re-opens the linked checkout so the item can actually be
+    // returned — previously 'damaged' was a terminal state that permanently
+    // wedged the return flow and kept the unit decremented.
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      const result = await client.query(
+        `UPDATE hardware_damage_reports SET status = 'resolved', resolved_at = NOW()
+         WHERE id = $1 AND event_id = $2 AND status = 'open'
+         RETURNING *`,
+        [reportId, eventId]
+      );
+      const report = result.rows[0] || null;
+
+      if (report?.checkout_id) {
+        await client.query(
+          `UPDATE hardware_checkouts SET status = 'active' WHERE id = $1 AND status = 'damaged'`,
+          [report.checkout_id]
+        );
+      }
+
+      await client.query("COMMIT");
+      return report;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   },
 
   // Analytics

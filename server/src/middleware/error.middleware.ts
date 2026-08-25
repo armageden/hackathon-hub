@@ -56,6 +56,14 @@ function normalizeDbError(err: Error): Error {
     // invalid_text_representation — e.g. malformed uuid in a path param or body
     return new ValidationError("Invalid ID format");
   }
+  if (pgCode === "22001") {
+    // string_data_right_truncation — value longer than its column allows
+    return new ValidationError("A value exceeds the maximum allowed length");
+  }
+  if (pgCode === "22008") {
+    // datetime_field_overflow — unparseable/out-of-range timestamp input
+    return new ValidationError("Invalid date or time value");
+  }
   if (pgCode === "23503" || pgCode === "23001") {
     // foreign_key_violation / restrict_violation — e.g. deleting a row other rows reference
     return new ConflictError("Cannot delete or modify: referenced by existing records");
@@ -63,6 +71,14 @@ function normalizeDbError(err: Error): Error {
   if (pgCode === "23505") {
     // unique_violation — e.g. two concurrent inserts racing past the service-level check
     return new ConflictError("This record already exists");
+  }
+  if (pgCode === "23514") {
+    // check_violation — a status/enum field carried a value outside its CHECK constraint
+    return new ValidationError("Invalid value for one of the fields");
+  }
+  if (pgCode === "23P01") {
+    // exclusion_violation — e.g. the venue_assignments no-double-booking constraint
+    return new ConflictError("That time slot conflicts with an existing booking");
   }
   return err;
 }

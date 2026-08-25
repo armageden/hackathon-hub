@@ -1,5 +1,6 @@
 import { teamsRepository } from "./teams.repository.js";
 import { participantsRepository } from "../participants/participants.repository.js";
+import { eventMembersRepository } from "../event-members/event-members.repository.js";
 import { NotFoundError, ConflictError, ValidationError, AuthorizationError } from "../../middleware/error.middleware.js";
 
 export const teamsService = {
@@ -67,44 +68,28 @@ export const teamsService = {
   async forceJoinTeam(eventId: string, teamId: string, targetUserId: string) {
     const team = await teamsRepository.findById(eventId, teamId);
     if (!team) throw new NotFoundError("Team not found");
-    if (team.status === "dissolved") throw new ValidationError("Cannot join a dissolved team");
 
-    const alreadyMember = await teamsRepository.isMember(teamId, targetUserId);
-    if (alreadyMember) throw new ConflictError("User is already a member of this team");
-
-    const memberCount = await teamsRepository.getMemberCount(teamId);
-    if (memberCount >= team.max_size) throw new ConflictError("Team is full");
-
-    const member = await teamsRepository.addMember(teamId, targetUserId);
-
-    if (memberCount + 1 >= team.max_size) {
-      await teamsRepository.update(eventId, teamId, { status: "full" });
+    // Force-join is for assigning existing participants — never a backdoor to
+    // add platform users who aren't part of this event.
+    const membership = await eventMembersRepository.getMyRole(eventId, targetUserId);
+    if (!membership || !["active", "approved"].includes(membership.status)) {
+      throw new AuthorizationError("User is not an active member of this event");
     }
 
-    return member;
+    return teamsRepository.addMemberAtomically(eventId, teamId, targetUserId, {
+      assignedBy: undefined,
+    });
   },
 
   async joinTeam(eventId: string, teamId: string, userId: string) {
     const team = await teamsRepository.findById(eventId, teamId);
     if (!team) throw new NotFoundError("Team not found");
-    if (team.status === "dissolved") throw new ValidationError("Cannot join a dissolved team");
 
-    const alreadyMember = await teamsRepository.isMember(teamId, userId);
-    if (alreadyMember) throw new ConflictError("You are already a member of this team");
-
-    const hasOtherTeam = await teamsRepository.hasTeamInEvent(eventId, userId);
-    if (hasOtherTeam) throw new ConflictError("You are already in a team for this event");
-
-    const memberCount = await teamsRepository.getMemberCount(teamId);
-    if (memberCount >= team.max_size) throw new ConflictError("Team is full");
-
-    const member = await teamsRepository.addMember(teamId, userId);
-
-    if (memberCount + 1 >= team.max_size) {
-      await teamsRepository.update(eventId, teamId, { status: "full" });
-    }
-
-    return member;
+    // Capacity and one-team-per-event are enforced under a row lock so
+    // concurrent joins can't overfill or double-team.
+    return teamsRepository.addMemberAtomically(eventId, teamId, userId, {
+      requireTeamless: true,
+    });
   },
 
   async leaveTeam(eventId: string, teamId: string, userId: string) {
@@ -190,18 +175,21 @@ export const teamsService = {
     if (!team) throw new NotFoundError("Team not found");
 
     if (status === "approved") {
-      const memberCount = await teamsRepository.getMemberCount(application.team_id);
-      if (memberCount >= team.max_size) throw new ConflictError("Team is full");
-
-      const profile = await participantsRepository.findProfileByEventAndUser(eventId, application.user_id);
+      const profile = await participantsRepository.findProfileById(application.participant_profile_id);
       if (!profile) throw new NotFoundError("Participant profile not found");
 
-      await teamsRepository.addMember(application.team_id, profile.user_id, reviewerId);
-
-      const newCount = memberCount + 1;
-      if (newCount >= team.max_size) {
-        await teamsRepository.update(eventId, application.team_id, { status: "full" });
-      }
+      // Capacity and one-team-per-event are enforced under a row lock, and
+      // the applicant's other pending applications are closed so a second
+      // owner can't approve them afterwards.
+      await teamsRepository.addMemberAtomically(eventId, application.team_id, profile.user_id, {
+        requireTeamless: true,
+        assignedBy: reviewerId,
+      });
+      await teamsRepository.closeOtherPendingApplications(
+        application.participant_profile_id,
+        application.team_id,
+        reviewerId
+      );
     }
 
     const updated = await teamsRepository.updateApplication(applicationId, status, reviewerId);

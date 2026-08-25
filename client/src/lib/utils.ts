@@ -9,29 +9,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/**
- * Formats a number compactly (1.2k, 3.4M, etc.)
- */
-export function formatCompact(num: number): string {
-  if (num >= 1_000_000_000) return (num / 1_000_000_000).toFixed(1).replace(/\.0$/, '') + 'B';
-  if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
-  if (num >= 1_000) return (num / 1_000).toFixed(1).replace(/\.0$/, '') + 'k';
-  return num.toString();
-}
-
-/**
- * Formats a number with thousands separator
- */
-export function formatNumber(num: number): string {
-  return new Intl.NumberFormat().format(num);
-}
-
-/**
- * Formats currency
- */
-export function formatCurrency(amount: number, currency = 'USD'): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
-}
+// NOTE: date/number formatting lives in lib/formatters.ts — don't add
+// duplicates here. (formatRelative below is kept only for its one caller.)
 
 /**
  * Formats a date relative to now (e.g., "2h ago", "3 days ago")
@@ -55,34 +34,6 @@ export function formatRelative(date: Date | string): string {
   if (diffWeek < 4) return `${diffWeek}w ago`;
   if (diffMonth < 12) return `${diffMonth}mo ago`;
   return `${diffYear}y ago`;
-}
-
-/**
- * Formats a date for display (e.g., "Jan 15, 2024")
- */
-export function formatDate(date: Date | string, options?: Intl.DateTimeFormatOptions): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    ...options,
-  }).format(d);
-}
-
-/**
- * Formats a date and time for display
- */
-export function formatDateTime(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  }).format(d);
 }
 
 /**

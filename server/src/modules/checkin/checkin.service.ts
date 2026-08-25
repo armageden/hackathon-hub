@@ -25,10 +25,17 @@ export const checkinService = {
       throw new NotFoundError("Invalid or expired QR token");
     }
 
-    await checkinRepository.markQRTokenUsed(qrToken.id);
-
+    // Already-checked-in test comes BEFORE the claim so a 409 here doesn't
+    // burn a perfectly good token.
     const existing = await checkinRepository.findCheckin(eventId, qrToken.user_id);
     if (existing) throw new ConflictError("User already checked in");
+
+    // Atomic single-use claim — the loser of a concurrent double-scan gets a
+    // clean conflict instead of a second check-in row.
+    const claimed = await checkinRepository.claimQRToken(qrToken.id);
+    if (!claimed) {
+      throw new ConflictError("QR token already used");
+    }
 
     const checkin = await checkinRepository.createCheckin(
       eventId, qrToken.user_id, "qr", null

@@ -6,11 +6,15 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
   type ReactNode,
 } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useParams } from 'react-router-dom';
 import { Toaster } from '@/components/ui/Toast';
-import { DemoModeProvider } from './demo-mode';
+import { DemoModeProvider, useDemoMode } from './demo-mode';
+import { DEMO_EVENT_ID, REAL_EVENT_ID, setCurrentEventId } from '@/lib/event-id';
+import { api } from '@/lib/api';
 import type { User } from '@/types/api';
 
 const queryClient = new QueryClient({
@@ -122,8 +126,10 @@ export function Providers({ children }: { children: ReactNode }) {
       <DemoModeProvider>
         <ThemeProvider>
           <AuthProviderInner>
-            {children}
-            <Toaster position="top-right" richColors />
+            <EventProvider>
+              {children}
+              <Toaster position="top-right" richColors />
+            </EventProvider>
           </AuthProviderInner>
         </ThemeProvider>
       </DemoModeProvider>
@@ -183,4 +189,133 @@ export function useAuth(): AuthContextType {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+}
+
+// Event Context
+export interface Event {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  status: 'draft' | 'active' | 'archived';
+  my_role: string;
+  created_at: string;
+}
+
+interface EventContextType {
+  eventId: string | null;
+  setEventId: (id: string) => void;
+  events: Event[];
+  loading: boolean;
+  refetch: () => Promise<Event[]>;
+}
+
+const EventContext = createContext<EventContextType | undefined>(undefined);
+
+export function EventProvider({ children }: { children: ReactNode }) {
+  const { token } = useAuth();
+  const { demoMode } = useDemoMode();
+  const [eventId, setEventIdState] = useState<string | null>(() =>
+    localStorage.getItem('activeEventId')
+ );
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Only force-select on actual demo toggles; init to current value so the
+  // first run of the effect is a no-op and never overrides a manual pick.
+  const lastDemoMode = useRef(demoMode);
+
+  const fetchEvents = useCallback(async (): Promise<Event[]> => {
+    if (!token) {
+      setEvents([]);
+      setLoading(false);
+      return [];
+    }
+
+    try {
+      const res = await api.get<{ events: Event[] }>('/events');
+      const list = res.data?.events || [];
+      setEvents(list);
+      return list;
+    } catch (err) {
+      console.error('Failed to fetch events:', err);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
+
+  // Demo toggle drives selection against a FRESH list — enableDemoData seeds
+  // the event server-side after this component cached its list, and checking
+  // the stale cache here silently skipped the switch.
+  useEffect(() => {
+    if (lastDemoMode.current === demoMode) return;
+    lastDemoMode.current = demoMode;
+
+    let cancelled = false;
+    (async () => {
+      const fresh = await fetchEvents();
+      if (cancelled) return;
+      const target = demoMode ? DEMO_EVENT_ID : REAL_EVENT_ID;
+      if (fresh.some(e => e.id === target)) {
+        setEventIdState(target);
+        localStorage.setItem('activeEventId', target);
+        setCurrentEventId(target);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [demoMode, fetchEvents]);
+
+  const setEventId = useCallback((id: string) => {
+    setEventIdState(id);
+    localStorage.setItem('activeEventId', id);
+  }, []);
+
+  // Synchronous derivation: stale/missing stored ID falls back to the first
+  // event in the same render where ProtectedRoute validates access.
+  const effectiveEventId =
+    eventId && events.some(e => e.id === eventId)
+      ? eventId
+      : events[0]?.id ?? null;
+
+  // Mirror selection into lib/event-id so plain functions (api modules,
+  // useEventRole defaults) resolve the currently selected event.
+  useEffect(() => {
+    if (effectiveEventId) setCurrentEventId(effectiveEventId);
+  }, [effectiveEventId]);
+
+  return (
+    <EventContext.Provider value={{ eventId: effectiveEventId, setEventId, events, loading, refetch: fetchEvents }}>
+      {children}
+    </EventContext.Provider>
+  );
+}
+
+export function useEvent(): EventContextType {
+  const context = useContext(EventContext);
+  if (!context) {
+    throw new Error('useEvent must be used within an EventProvider');
+  }
+  return context;
+}
+
+// For pages mounted under /events/:eventId/*. The URL param wins: it's what
+// ProtectedRoute validated and what the user sees in the address bar, so data,
+// role checks, and URL can never disagree. Context only backs non-URL callers.
+export function useScopedEventId(): string {
+  const { eventId: urlEventId } = useParams();
+  const { eventId: contextEventId } = useEvent();
+  const id = urlEventId ?? contextEventId;
+  if (!id) {
+    throw new Error('useScopedEventId requires an active event');
+  }
+  return id;
 }

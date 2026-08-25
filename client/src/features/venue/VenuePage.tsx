@@ -21,7 +21,7 @@ import type {
 } from "@/types/api";
 import * as venueApi from "./venue.api";
 import { listTeams } from "../teams/teams.api";
-import { useActiveEventId } from "@/app/demo-mode";
+import { useScopedEventId } from "@/app/providers";
 
 const LOCATION_TYPES = ["room", "booth", "table", "stage", "lab", "desk"] as const;
 const ASSIGNABLE_TYPES = ["team", "project", "exhibit"] as const;
@@ -67,8 +67,8 @@ interface AssignmentFormState {
 }
 
 export default function VenuePage() {
-  const EVENT_ID = useActiveEventId();
-  const { canManage } = useEventRole();
+  const EVENT_ID = useScopedEventId();
+  const { canManage } = useEventRole(EVENT_ID);
 
   const [tab, setTab] = useState<Tab>("schedule");
   const [locations, setLocations] = useState<VenueLocation[]>([]);

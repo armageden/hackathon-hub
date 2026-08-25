@@ -68,29 +68,29 @@ export const certificatesRepository = {
     const result = await pool.query(
       `INSERT INTO certificates (event_id, user_id, certificate_type, status, verification_code, metadata)
        VALUES ($1, $2, $3, 'eligible', $4, $5)
-       ON CONFLICT (event_id, user_id, certificate_type) DO NOTHING
+       ON CONFLICT DO NOTHING
        RETURNING *`,
       [eventId, userId, certificateType, verificationCode, JSON.stringify(metadata)]
     );
     return result.rows[0] || null;
   },
 
-  async issueCertificate(certificateId: string) {
+  async issueCertificate(eventId: string, certificateId: string) {
     const result = await pool.query(
       `UPDATE certificates SET status = 'issued', issued_at = NOW()
-       WHERE id = $1 AND status = 'eligible'
+       WHERE id = $1 AND event_id = $2 AND status = 'eligible'
        RETURNING *`,
-      [certificateId]
+      [certificateId, eventId]
     );
     return result.rows[0] || null;
   },
 
-  async revokeCertificate(certificateId: string) {
+  async revokeCertificate(eventId: string, certificateId: string) {
     const result = await pool.query(
       `UPDATE certificates SET status = 'revoked', revoked_at = NOW()
-       WHERE id = $1 AND status = 'issued'
+       WHERE id = $1 AND event_id = $2 AND status = 'issued'
        RETURNING *`,
-      [certificateId]
+      [certificateId, eventId]
     );
     return result.rows[0] || null;
   },

@@ -64,11 +64,13 @@ export const checkinRepository = {
     return result.rows[0] || null;
   },
 
-  async markQRTokenUsed(tokenId: string) {
-    await pool.query(
-      "UPDATE qr_tokens SET used_at = NOW() WHERE id = $1",
+  // Atomic single-use claim: returns false when another concurrent scan won.
+  async claimQRToken(tokenId: string): Promise<boolean> {
+    const result = await pool.query(
+      "UPDATE qr_tokens SET used_at = NOW() WHERE id = $1 AND used_at IS NULL RETURNING id",
       [tokenId]
     );
+    return result.rowCount !== null && result.rowCount > 0;
   },
 
   async getCheckinStats(eventId: string) {

@@ -1,21 +1,30 @@
-import { useAuth } from "../app/providers";
+import { useAuth, useEvent } from "../app/providers";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 
-const quickActions = [
-  { label: "Events", href: "/events", description: "Manage events" },
-  { label: "Teams", href: "/team", description: "Team management" },
-  { label: "Hardware", href: "/hardware", description: "Inventory & checkouts" },
-  { label: "Schedule", href: "/venue", description: "Venue & schedule" },
-  { label: "Check-in", href: "/checkin", description: "Attendee check-in" },
-  { label: "Budget", href: "/budget", description: "Sponsors & expenses" },
-  { label: "Projects", href: "/projects", description: "Submissions & judging" },
-  { label: "Incidents", href: "/incidents", description: "Safety & reports" },
+// Route segments under /events/:eventId/
+const QUICK_ACTIONS = [
+  { label: "Events", path: "", description: "Manage events" },
+  { label: "Teams", path: "team", description: "Team management" },
+  { label: "Hardware", path: "hardware", description: "Inventory & checkouts" },
+  { label: "Schedule", path: "venue", description: "Venue & schedule" },
+  { label: "Check-in", path: "checkin", description: "Attendee check-in" },
+  { label: "Budget", path: "budget", description: "Sponsors & expenses" },
+  { label: "Projects", path: "projects", description: "Submissions & judging" },
+  { label: "Incidents", path: "incidents", description: "Safety & reports" },
 ] as const;
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { eventId } = useEvent();
   const navigate = useNavigate();
+
+  const quickActions = QUICK_ACTIONS.map(({ label, path, description }) => ({
+    label,
+    description,
+    // "" maps to the events hub itself
+    href: eventId ? `/events/${eventId}${path ? `/${path}` : ""}` : "/events",
+  }));
 
   if (!user) return null;
 

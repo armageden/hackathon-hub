@@ -19,6 +19,13 @@ vi.mock("@/app/providers", () => ({
     user: mockUser,
     logout: vi.fn(),
   }),
+  useEvent: () => ({
+    eventId: "evt-1",
+    events: [],
+    loading: false,
+    setEventId: vi.fn(),
+    refetch: vi.fn().mockResolvedValue(undefined),
+  }),
 }));
 
 vi.mock("@/lib/demo.api", () => ({

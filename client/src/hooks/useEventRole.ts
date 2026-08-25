@@ -1,34 +1,49 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../app/providers";
 import { apiRequest } from "../lib/api";
-import { getActiveEventId } from "../lib/event-id";
 
 type EventRole = "organizer" | "participant" | "volunteer" | "judge" | null;
 
-export function useEventRole(eventId: string = getActiveEventId()) {
+// eventId is required so a page can never accidentally resolve its role
+// against a different event than the one it renders data for.
+export function useEventRole(eventId: string) {
   const { user } = useAuth();
   const [eventRole, setEventRole] = useState<EventRole>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !eventId) {
       setEventRole(null);
       setLoading(false);
       return;
     }
 
+    // Ignore responses that resolve after eventId/user changed — prevents a
+    // slow stale fetch from overwriting a newer event's role.
+    let cancelled = false;
+
     apiRequest<{ membership: { role: string; status: string } | null }>(
       `/events/${eventId}/members/me`
     )
       .then((res) => {
-        if (res.membership && res.membership.status === "active") {
+        if (cancelled) return;
+        // 'approved' counts here just as it does in requireEventRole
+        if (res.membership && ["active", "approved"].includes(res.membership.status)) {
           setEventRole(res.membership.role as EventRole);
         } else {
           setEventRole(null);
         }
       })
-      .catch(() => setEventRole(null))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (!cancelled) setEventRole(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [user, eventId]);
 
   const isOrganizer = eventRole === "organizer";

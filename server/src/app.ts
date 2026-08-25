@@ -3,6 +3,7 @@ import cors from "cors";
 import { config } from "./config/index.js";
 import { errorHandler } from "./middleware/error.middleware.js";
 import authRoutes from "./modules/auth/auth.routes.js";
+import eventsRoutes from "./modules/events/events.routes.js";
 import hardwareRoutes from "./modules/hardware/hardware.routes.js";
 import teamsRoutes from "./modules/teams/teams.routes.js";
 import itineraryRoutes from "./modules/itinerary/itinerary.routes.js";
@@ -14,6 +15,7 @@ import venueRoutes from "./modules/venue/venue.routes.js";
 import projectsRoutes from "./modules/projects/projects.routes.js";
 import judgingRoutes from "./modules/judging/judging.routes.js";
 import demoRoutes from "./modules/demo/demo.routes.js";
+import { authenticate } from "./middleware/auth.middleware.js";
 import { pool } from "./db/pool.js";
 
 const app = express();
@@ -24,6 +26,7 @@ app.use(express.json());
 
 // Routes
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/events", eventsRoutes);
 app.use("/api/v1/events/:eventId/hardware", hardwareRoutes);
 app.use("/api/v1/events/:eventId/teams", teamsRoutes);
 app.use("/api/v1/events/:eventId/itinerary", itineraryRoutes);
@@ -41,8 +44,8 @@ app.get("/api/v1/health", (_req, res) => {
   res.json({ success: true, data: { status: "ok" } });
 });
 
-// Detailed health check with database info
-app.get("/api/v1/health/detailed", async (_req, res) => {
+// Detailed health check with database info (authenticated — exposes schema details)
+app.get("/api/v1/health/detailed", authenticate, async (_req, res) => {
   try {
     const dbResult = await pool.query(`
       SELECT 

@@ -10,21 +10,12 @@ import {
 import { listItinerary } from "../itinerary/itinerary.api";
 import type { ItineraryItem } from "../itinerary/itinerary.types";
 import { useEventRole } from "../../hooks/useEventRole";
-import { useActiveEventId } from "../../app/demo-mode";
-
-function formatTimestamp(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import { useScopedEventId } from "../../app/providers";
+import { formatDateTime } from "@/lib/formatters";
 
 export default function CheckinPage() {
-  const EVENT_ID = useActiveEventId();
-  const { canManage, canCheckIn, loading: roleLoading } = useEventRole();
+  const EVENT_ID = useScopedEventId();
+  const { canManage, canCheckIn, loading: roleLoading } = useEventRole(EVENT_ID);
   const [activeTab, setActiveTab] = useState<"checkins" | "qr">("checkins");
 
   const [checkins, setCheckins] = useState<Checkin[]>([]);
@@ -272,7 +263,7 @@ export default function CheckinPage() {
                             {c.session_title || "—"}
                           </td>
                           <td className="px-5 py-3 text-gray-500">
-                            {formatTimestamp(c.checked_in_at)}
+                            {formatDateTime(c.checked_in_at)}
                           </td>
                         </tr>
                       ))}

@@ -62,12 +62,19 @@ export const itineraryService = {
     const item = await itineraryRepository.findById(eventId, itemId);
     if (!item) throw new NotFoundError("Itinerary item not found");
 
-    if (data.starts_at && data.ends_at) {
-      const startDate = new Date(data.starts_at);
-      const endDate = new Date(data.ends_at);
-      if (endDate <= startDate) {
-        throw new ValidationError("End time must be after start time");
-      }
+    // Effective-range check: a partial update supplying only one bound is
+    // validated against the stored counterpart, so inverted ranges can't
+    // slip through the both-fields-present guard.
+    const effectiveStart = data.starts_at ?? item.starts_at;
+    const effectiveEnd = data.ends_at ?? item.ends_at;
+    if (
+      Number.isNaN(new Date(effectiveStart).getTime()) ||
+      Number.isNaN(new Date(effectiveEnd).getTime())
+    ) {
+      throw new ValidationError("Invalid time value");
+    }
+    if (new Date(effectiveEnd) <= new Date(effectiveStart)) {
+      throw new ValidationError("End time must be after start time");
     }
 
     if (data.status && !["active", "cancelled"].includes(data.status)) {

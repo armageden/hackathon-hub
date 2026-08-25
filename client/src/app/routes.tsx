@@ -1,10 +1,13 @@
-import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
+import { useEffect } from 'react';
+import { createBrowserRouter, Navigate, Outlet, useParams } from 'react-router-dom';
 import { ErrorPage } from '../components/ErrorPage';
 import { Shell } from '../components/layout/Shell';
 import LoginPage from '../features/auth/LoginPage';
 import RegisterPage from '../features/auth/RegisterPage';
 import DashboardPage from '../pages/DashboardPage';
 import HomePage from '../pages/HomePage';
+import EventsPage from '../features/events/EventsPage';
+import CreateEventPage from '../features/events/CreateEventPage';
 import HardwareDashboardPage from '../features/hardware/pages/HardwareDashboardPage';
 import HardwareBrowsePage from '../features/hardware/pages/HardwareBrowsePage';
 import TeamsPage from '../features/teams/TeamsPage';
@@ -14,14 +17,28 @@ import CertificatesPage from '../features/certificates/CertificatesPage';
 import VenuePage from '../features/venue/VenuePage';
 import ProjectsPage from '../features/projects/ProjectsPage';
 import JudgingPage from '../features/judging/JudgingPage';
-import { useAuth } from './providers';
-import { useActiveEventId } from './demo-mode';
+import { useAuth, useEvent } from './providers';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  const eventId = useActiveEventId();
+  const { events, loading: eventsLoading, eventId: activeEventId, setEventId } = useEvent();
+  const { eventId } = useParams();
 
-  if (loading) {
+  // Keep the provider selection (and the lib/event-id mirror used by
+  // default-param API callers) following the validated URL segment.
+  useEffect(() => {
+    if (
+      !loading &&
+      !eventsLoading &&
+      eventId &&
+      eventId !== activeEventId &&
+      events.some(e => e.id === eventId)
+    ) {
+      setEventId(eventId);
+    }
+  }, [loading, eventsLoading, eventId, activeEventId, events, setEventId]);
+
+  if (loading || eventsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <div className="text-gray-400">Loading...</div>
@@ -33,8 +50,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
-  // Keyed by event so toggling Demo Mode remounts the page and its data
-  // loads re-run against the other event.
+  // Verify user has access to this event
+  if (eventId && !events.find(e => e.id === eventId)) {
+    return <Navigate to="/events" replace />;
+  }
+
   return <div key={eventId}>{children}</div>;
 }
 
@@ -50,7 +70,7 @@ function GuestRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/events" replace />;
   }
 
   return <>{children}</>;
@@ -70,10 +90,12 @@ function PublicLayout({ children }: { children?: React.ReactNode }) {
 // Hardware route - shows different page based on role
 function HardwareRoute() {
   const { user } = useAuth();
-  const eventId = useActiveEventId();
-  const isOrganizer = user?.global_role === 'admin'; // Simplified - in real app check event membership
+  const { eventId } = useParams();
+  const isOrganizer = user?.global_role === 'admin';
 
-  return isOrganizer ? <HardwareDashboardPage eventId={eventId} /> : <HardwareBrowsePage eventId={eventId} />;
+  return isOrganizer
+    ? <HardwareDashboardPage eventId={eventId!} />
+    : <HardwareBrowsePage eventId={eventId!} />;
 }
 
 export const router = createBrowserRouter([
@@ -106,101 +128,161 @@ export const router = createBrowserRouter([
     element: <Shell />,
     errorElement: <ErrorPage />,
     children: [
-      {
-        path: 'dashboard',
-        element: (
-          <ProtectedRoute>
-            <DashboardPage />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: 'hardware',
-        element: (
-          <ProtectedRoute>
-            <HardwareRoute />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: 'venue',
-        element: (
-          <ProtectedRoute>
-            <VenuePage />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: 'projects',
-        element: (
-          <ProtectedRoute>
-            <ProjectsPage />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: 'judging',
-        element: (
-          <ProtectedRoute>
-            <JudgingPage />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: 'team',
-        element: (
-          <ProtectedRoute>
-            <TeamsPage />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: 'itinerary',
-        element: (
-          <ProtectedRoute>
-            <ItineraryPage />
-          </ProtectedRoute>
-        ),
-      },
+      // Events list (no event ID required)
       {
         path: 'events',
         element: (
           <ProtectedRoute>
-            <div>Events Dashboard - Coming Soon</div>
+            <EventsPage />
           </ProtectedRoute>
         ),
+      },
+      {
+        path: 'events/create',
+        element: (
+          <ProtectedRoute>
+            <CreateEventPage />
+          </ProtectedRoute>
+        ),
+      },
+      // Event-scoped routes
+      {
+        path: 'events/:eventId',
+        children: [
+          {
+            path: 'dashboard',
+            element: (
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'hardware',
+            element: (
+              <ProtectedRoute>
+                <HardwareRoute />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'venue',
+            element: (
+              <ProtectedRoute>
+                <VenuePage />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'projects',
+            element: (
+              <ProtectedRoute>
+                <ProjectsPage />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'judging',
+            element: (
+              <ProtectedRoute>
+                <JudgingPage />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'team',
+            element: (
+              <ProtectedRoute>
+                <TeamsPage />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'itinerary',
+            element: (
+              <ProtectedRoute>
+                <ItineraryPage />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'checkin',
+            element: (
+              <ProtectedRoute>
+                <CheckinPage />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'certificates',
+            element: (
+              <ProtectedRoute>
+                <CertificatesPage />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'budget',
+            element: (
+              <ProtectedRoute>
+                <div className="p-8 text-center text-gray-400">Budget Dashboard - Coming Soon</div>
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'incidents',
+            element: (
+              <ProtectedRoute>
+                <div className="p-8 text-center text-gray-400">Incidents Dashboard - Coming Soon</div>
+              </ProtectedRoute>
+            ),
+          },
+        ],
+      },
+      // Redirect old routes to events list
+      {
+        path: 'dashboard',
+        element: <Navigate to="/events" replace />,
+      },
+      {
+        path: 'hardware',
+        element: <Navigate to="/events" replace />,
+      },
+      {
+        path: 'venue',
+        element: <Navigate to="/events" replace />,
+      },
+      {
+        path: 'projects',
+        element: <Navigate to="/events" replace />,
+      },
+      {
+        path: 'judging',
+        element: <Navigate to="/events" replace />,
+      },
+      {
+        path: 'team',
+        element: <Navigate to="/events" replace />,
+      },
+      {
+        path: 'itinerary',
+        element: <Navigate to="/events" replace />,
       },
       {
         path: 'checkin',
-        element: (
-          <ProtectedRoute>
-            <CheckinPage />
-          </ProtectedRoute>
-        ),
+        element: <Navigate to="/events" replace />,
       },
       {
         path: 'certificates',
-        element: (
-          <ProtectedRoute>
-            <CertificatesPage />
-          </ProtectedRoute>
-        ),
+        element: <Navigate to="/events" replace />,
       },
       {
         path: 'budget',
-        element: (
-          <ProtectedRoute>
-            <div>Budget Dashboard - Coming Soon</div>
-          </ProtectedRoute>
-        ),
+        element: <Navigate to="/events" replace />,
       },
       {
         path: 'incidents',
-        element: (
-          <ProtectedRoute>
-            <div>Incidents Dashboard - Coming Soon</div>
-          </ProtectedRoute>
-        ),
+        element: <Navigate to="/events" replace />,
       },
     ],
   },

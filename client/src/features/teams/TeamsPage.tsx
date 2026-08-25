@@ -14,13 +14,13 @@ import {
 } from "./teams.api";
 import type { Team, ParticipantProfile, TechTag } from "./teams.types";
 import { useEventRole } from "../../hooks/useEventRole";
-import { useActiveEventId } from "../../app/demo-mode";
+import { useScopedEventId } from "../../app/providers";
 
 type Tab = "teams" | "profile" | "browse";
 
 export default function TeamsPage() {
-  const EVENT_ID = useActiveEventId();
-  const { isOrganizer, loading: roleLoading } = useEventRole();
+  const EVENT_ID = useScopedEventId();
+  const { isOrganizer, isParticipant, loading: roleLoading } = useEventRole(EVENT_ID);
   const [activeTab, setActiveTab] = useState<Tab>("teams");
 
   const [teams, setTeams] = useState<Team[]>([]);
@@ -249,7 +249,10 @@ export default function TeamsPage() {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "teams", label: "Teams" },
-    ...(!isOrganizer ? [{ key: "profile" as Tab, label: "My Profile" }] : []),
+    // Profiles are participant-scoped server-side (GET /participants/me is
+    // organizer|participant only) — showing it to volunteers/judges just
+    // renders a blank form.
+    ...(isParticipant ? [{ key: "profile" as Tab, label: "My Profile" }] : []),
     { key: "browse", label: isOrganizer ? "All Participants" : "Browse Solo" },
   ];
 

@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/DropdownMenu';
 import { CommandPalette, CommandGroupWrapper, CommandItemComp, CommandSeparatorComp } from '@/components/ui/CommandPalette';
-import { useAuth } from '@/app/providers';
+import { useAuth, useEvent } from '@/app/providers';
+import { EventSelector } from './EventSelector';
 import { Search, Bell, Settings, LogOut, HelpCircle, Keyboard } from 'lucide-react';
 
 interface TopBarProps {
@@ -14,6 +15,7 @@ interface TopBarProps {
 
 export function TopBar({ onMenuClick }: TopBarProps) {
   const { user, logout } = useAuth();
+  const { eventId } = useEvent();
   const [commandOpen, setCommandOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
@@ -29,16 +31,19 @@ export function TopBar({ onMenuClick }: TopBarProps) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Event-scoped navigation targets; fall back to the events hub
+  const base = eventId ? `/events/${eventId}` : '/events';
+
   const commandItems = [
     {
       group: 'Navigation',
       items: [
-        { label: 'Dashboard', shortcut: '⌘1', href: '/dashboard' },
-        { label: 'Hardware', shortcut: '⌘2', href: '/hardware' },
-        { label: 'Venue', shortcut: '⌘3', href: '/venue' },
-        { label: 'Projects', shortcut: '⌘4', href: '/projects' },
-        { label: 'Judging', shortcut: '⌘5', href: '/judging' },
-        { label: 'Team', shortcut: '⌘6', href: '/team' },
+        { label: 'Dashboard', shortcut: '⌘1', href: `${base}/dashboard` },
+        { label: 'Hardware', shortcut: '⌘2', href: `${base}/hardware` },
+        { label: 'Venue', shortcut: '⌘3', href: `${base}/venue` },
+        { label: 'Projects', shortcut: '⌘4', href: `${base}/projects` },
+        { label: 'Judging', shortcut: '⌘5', href: `${base}/judging` },
+        { label: 'Team', shortcut: '⌘6', href: `${base}/team` },
       ],
     },
     {
@@ -87,6 +92,11 @@ export function TopBar({ onMenuClick }: TopBarProps) {
               <span className="text-gray-400">⌘</span>K
             </kbd>
           </Button>
+        </div>
+
+        {/* Center: Event Selector */}
+        <div className="hidden md:flex flex-1 justify-center px-4">
+          <EventSelector />
         </div>
 
         {/* Right: Notifications + User Menu */}

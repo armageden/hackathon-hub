@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/DropdownMenu';
 import { Sheet, SheetTrigger, SheetContent } from '@/components/ui/Sheet';
-import { useAuth } from '@/app/providers';
+import { useAuth, useEvent } from '@/app/providers';
 import { useDemoMode } from '@/app/demo-mode';
 import { enableDemoData, disableDemoData } from '@/lib/demo.api';
 import {
@@ -27,17 +27,27 @@ import {
   FlaskConical,
 } from 'lucide-react';
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Hardware', href: '/hardware', icon: Box },
-  { name: 'Venue', href: '/venue', icon: MapPin },
-  { name: 'Projects', href: '/projects', icon: GitBranch },
-  { name: 'Judging', href: '/judging', icon: Gavel },
-  { name: 'Team', href: '/team', icon: Users },
-  { name: 'Itinerary', href: '/itinerary', icon: CalendarDays },
-  { name: 'Check-in', href: '/checkin', icon: UserCheck },
-  { name: 'Certificates', href: '/certificates', icon: Award },
+// Route segment under /events/:eventId/
+const NAV_ITEMS = [
+  { name: 'Dashboard', path: 'dashboard', icon: LayoutDashboard },
+  { name: 'Hardware', path: 'hardware', icon: Box },
+  { name: 'Venue', path: 'venue', icon: MapPin },
+  { name: 'Projects', path: 'projects', icon: GitBranch },
+  { name: 'Judging', path: 'judging', icon: Gavel },
+  { name: 'Team', path: 'team', icon: Users },
+  { name: 'Itinerary', path: 'itinerary', icon: CalendarDays },
+  { name: 'Check-in', path: 'checkin', icon: UserCheck },
+  { name: 'Certificates', path: 'certificates', icon: Award },
 ];
+
+// Event-scoped links; without an active event everything points at the hub.
+function useNavigation() {
+  const { eventId } = useEvent();
+  return NAV_ITEMS.map((item) => ({
+    ...item,
+    href: eventId ? `/events/${eventId}/${item.path}` : '/events',
+  }));
+}
 
 function DemoModeToggle({ collapsed }: { collapsed?: boolean }) {
   const { demoMode, toggleDemoMode } = useDemoMode();
@@ -99,6 +109,8 @@ function DemoModeToggle({ collapsed }: { collapsed?: boolean }) {
 export function Sidebar() {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const navigation = useNavigation();
+  const { eventId } = useEvent();
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -111,7 +123,7 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div className="flex items-center justify-between h-16 px-4 border-b border-gray-800">
-        <Link to="/dashboard" className="flex items-center gap-2" aria-label="Hackathon Hub">
+        <Link to={eventId ? `/events/${eventId}/dashboard` : '/events'} className="flex items-center gap-2" aria-label="Hackathon Hub">
           <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center">
             <Box className="h-5 w-5 text-white" />
           </div>
@@ -218,6 +230,8 @@ export function Sidebar() {
 export function MobileSidebar() {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const navigation = useNavigation();
+  const { eventId } = useEvent();
 
   return (
     <Sheet>
@@ -228,7 +242,7 @@ export function MobileSidebar() {
       </SheetTrigger>
       <SheetContent side="left" className="w-72">
         <div className="flex items-center justify-between mb-6">
-          <Link to="/dashboard" className="flex items-center gap-2">
+          <Link to={eventId ? `/events/${eventId}/dashboard` : '/events'} className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center">
               <Box className="h-5 w-5 text-white" />
             </div>

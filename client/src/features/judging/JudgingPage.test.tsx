@@ -5,8 +5,8 @@ import userEvent from "@testing-library/user-event";
 const useEventRole = vi.hoisted(() => vi.fn());
 vi.mock("@/hooks/useEventRole", () => ({ useEventRole }));
 
-vi.mock("@/app/demo-mode", () => ({
-  useActiveEventId: () => "e0000000-0000-0000-0000-000000000001",
+vi.mock("@/app/providers", () => ({
+  useScopedEventId: () => "e0000000-0000-0000-0000-000000000001",
 }));
 
 const judgingApi = vi.hoisted(() => ({

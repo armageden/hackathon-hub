@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import type { ItineraryItem } from "./itinerary.types";
 import { listItinerary, createItinerary, updateItinerary } from "./itinerary.api";
 import { useEventRole } from "../../hooks/useEventRole";
-import { useActiveEventId } from "../../app/demo-mode";
+import { useScopedEventId } from "../../app/providers";
+import { formatDateTime } from "@/lib/formatters";
 
 const SESSION_TYPE_COLORS: Record<string, string> = {
   ceremony: "bg-purple-500/20 text-purple-400 border-purple-500/30",
@@ -16,19 +17,9 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "bg-red-500/20 text-red-400 border-red-500/30",
 };
 
-function formatDateTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 export default function ItineraryPage() {
-  const EVENT_ID = useActiveEventId();
-  const { isOrganizer, loading: roleLoading } = useEventRole();
+  const EVENT_ID = useScopedEventId();
+  const { isOrganizer, loading: roleLoading } = useEventRole(EVENT_ID);
   const [items, setItems] = useState<ItineraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);

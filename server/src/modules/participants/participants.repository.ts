@@ -1,6 +1,24 @@
 import { pool } from "../../db/pool.js";
 
 export const participantsRepository = {
+  async findProfileById(profileId: string) {
+    const result = await pool.query(
+      `SELECT pp.*, u.full_name, u.email,
+              COALESCE(
+                json_agg(json_build_object('id', t.id, 'name', t.name, 'category', t.category))
+                FILTER (WHERE t.id IS NOT NULL), '[]'
+              ) AS tech_stack
+       FROM participant_profiles pp
+       JOIN users u ON u.id = pp.user_id
+       LEFT JOIN participant_tech_stack pts ON pts.participant_profile_id = pp.id
+       LEFT JOIN tech_stack_tags t ON t.id = pts.tech_stack_tag_id
+       WHERE pp.id = $1
+       GROUP BY pp.id, u.full_name, u.email`,
+      [profileId]
+    );
+    return result.rows[0] || null;
+  },
+
   async findProfileByEventAndUser(eventId: string, userId: string) {
     const result = await pool.query(
       `SELECT pp.*, u.full_name, u.email,

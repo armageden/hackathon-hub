@@ -8,21 +8,23 @@ import {
 } from "./certificates.api";
 import type { Certificate, EligibilityEntry } from "./certificates.types";
 import { useEventRole } from "../../hooks/useEventRole";
-import { useActiveEventId } from "../../app/demo-mode";
+import { useScopedEventId } from "../../app/providers";
+import { formatDateTime } from "@/lib/formatters";
 
 type Tab = "certificates" | "eligibility";
 
+// Dark-theme chips matching the itinerary/check-in badge palette
 const CERT_TYPE_COLORS: Record<string, string> = {
-  attendance: "bg-green-100 text-green-800",
-  completion: "bg-blue-100 text-blue-800",
-  volunteer: "bg-purple-100 text-purple-800",
-  judge: "bg-orange-100 text-orange-800",
+  attendance: "bg-green-500/20 text-green-400 border border-green-500/30",
+  completion: "bg-blue-500/20 text-blue-400 border border-blue-500/30",
+  volunteer: "bg-purple-500/20 text-purple-400 border border-purple-500/30",
+  judge: "bg-orange-500/20 text-orange-400 border border-orange-500/30",
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  eligible: "bg-yellow-100 text-yellow-800",
-  issued: "bg-green-100 text-green-800",
-  revoked: "bg-red-100 text-red-800",
+  eligible: "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30",
+  issued: "bg-green-500/20 text-green-400 border border-green-500/30",
+  revoked: "bg-red-500/20 text-red-400 border border-red-500/30",
 };
 
 function Badge({ className, children }: { className: string; children: React.ReactNode }) {
@@ -42,8 +44,8 @@ function XIcon() {
 }
 
 export default function CertificatesPage() {
-  const EVENT_ID = useActiveEventId();
-  const { isOrganizer, loading: roleLoading } = useEventRole();
+  const EVENT_ID = useScopedEventId();
+  const { isOrganizer, loading: roleLoading } = useEventRole(EVENT_ID);
   const [activeTab, setActiveTab] = useState<Tab>("certificates");
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [eligibility, setEligibility] = useState<EligibilityEntry[]>([]);
@@ -135,13 +137,7 @@ export default function CertificatesPage() {
 
   function formatDate(dateStr: string | null) {
     if (!dateStr) return "---";
-    return new Date(dateStr).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return formatDateTime(dateStr);
   }
 
   return (
@@ -281,12 +277,12 @@ export default function CertificatesPage() {
                         <td className="whitespace-nowrap px-6 py-3 text-white">{cert.full_name}</td>
                         <td className="whitespace-nowrap px-6 py-3 text-gray-300">{cert.email}</td>
                         <td className="whitespace-nowrap px-6 py-3">
-                          <Badge className={CERT_TYPE_COLORS[cert.certificate_type] || "bg-gray-100 text-gray-800"}>
+                          <Badge className={CERT_TYPE_COLORS[cert.certificate_type] || "bg-gray-500/20 text-gray-400 border border-gray-500/30"}>
                             {cert.certificate_type}
                           </Badge>
                         </td>
                         <td className="whitespace-nowrap px-6 py-3">
-                          <Badge className={STATUS_COLORS[cert.status] || "bg-gray-100 text-gray-800"}>
+                          <Badge className={STATUS_COLORS[cert.status] || "bg-gray-500/20 text-gray-400 border border-gray-500/30"}>
                             {cert.status}
                           </Badge>
                         </td>

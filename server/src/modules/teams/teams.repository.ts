@@ -1,4 +1,5 @@
 import { pool } from "../../db/pool.js";
+import { ConflictError } from "../../middleware/error.middleware.js";
 
 export const teamsRepository = {
   async listByEvent(eventId: string) {
@@ -179,7 +180,7 @@ export const teamsRepository = {
     const result = await pool.query(
       `INSERT INTO team_applications (team_id, participant_profile_id, message)
        VALUES ($1, $2, $3)
-       ON CONFLICT (team_id, participant_profile_id, 'pending') DO NOTHING
+       ON CONFLICT (team_id, participant_profile_id, status) DO NOTHING
        RETURNING *`,
       [teamId, participantProfileId, message]
     );
@@ -222,6 +223,9 @@ export const teamsRepository = {
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
+      // Serialize concurrent auto-assign runs per event; otherwise two runs
+      // snapshot the same solo list and double-team every participant.
+      await client.query("SELECT pg_advisory_xact_lock(hashtext('auto-assign:' || $1))", [eventId]);
 
       const soloResult = await client.query(
         `SELECT pp.id AS profile_id, pp.user_id
@@ -292,5 +296,100 @@ export const teamsRepository = {
     } finally {
       client.release();
     }
+  },
+
+  // Single serialized path for every way a user becomes a team member.
+  // Row-locks the team so count-then-insert races can't overfill capacity,
+  // and optionally enforces one-team-per-event under the same lock.
+  async addMemberAtomically(
+    eventId: string,
+    teamId: string,
+    userId: string,
+    opts?: { requireTeamless?: boolean; assignedBy?: string }
+  ) {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      const teamResult = await client.query(
+        "SELECT * FROM teams WHERE id = $1 AND event_id = $2 FOR UPDATE",
+        [teamId, eventId]
+      );
+      const team = teamResult.rows[0];
+      if (!team) {
+        await client.query("ROLLBACK");
+        throw new ConflictError("Team not found");
+      }
+      if (team.status === "dissolved") {
+        await client.query("ROLLBACK");
+        throw new ConflictError("Cannot join a dissolved team");
+      }
+
+      if (opts?.requireTeamless) {
+        const otherTeam = await client.query(
+          `SELECT tm.id FROM team_members tm
+           JOIN teams t ON t.id = tm.team_id
+           WHERE t.event_id = $1 AND tm.user_id = $2`,
+          [eventId, userId]
+        );
+        if (otherTeam.rows.length > 0) {
+          await client.query("ROLLBACK");
+          throw new ConflictError("User is already in a team for this event");
+        }
+      }
+
+      const countResult = await client.query(
+        "SELECT COUNT(*)::int AS count FROM team_members WHERE team_id = $1",
+        [teamId]
+      );
+      const memberCount = countResult.rows[0].count;
+      if (memberCount >= team.max_size) {
+        await client.query("ROLLBACK");
+        throw new ConflictError("Team is full");
+      }
+
+      const inserted = await client.query(
+        `INSERT INTO team_members (team_id, user_id, role, assigned_by)
+         VALUES ($1, $2, 'member', $3)
+         ON CONFLICT (team_id, user_id) DO NOTHING
+         RETURNING *`,
+        [teamId, userId, opts?.assignedBy || null]
+      );
+      if (inserted.rows.length === 0) {
+        await client.query("ROLLBACK");
+        throw new ConflictError("User is already a member of this team");
+      }
+
+      if (memberCount + 1 >= team.max_size) {
+        await client.query(
+          "UPDATE teams SET status = 'full', updated_at = NOW() WHERE id = $1",
+          [teamId]
+        );
+      }
+
+      await client.query("COMMIT");
+      return inserted.rows[0];
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  },
+
+  // On approval, an applicant's remaining pending applications elsewhere are
+  // stale — reject them so another owner can't pull the same user in later.
+  async closeOtherPendingApplications(
+    participantProfileId: string,
+    keepTeamId: string,
+    reviewedBy: string
+  ): Promise<number> {
+    const result = await pool.query(
+      `UPDATE team_applications
+       SET status = 'rejected', reviewed_by = $3, reviewed_at = NOW()
+       WHERE participant_profile_id = $1 AND status = 'pending' AND team_id <> $2`,
+      [participantProfileId, keepTeamId, reviewedBy]
+    );
+    return result.rowCount ?? 0;
   },
 };
