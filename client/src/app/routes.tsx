@@ -17,6 +17,7 @@ import CertificatesPage from '../features/certificates/CertificatesPage';
 import VenuePage from '../features/venue/VenuePage';
 import ProjectsPage from '../features/projects/ProjectsPage';
 import JudgingPage from '../features/judging/JudgingPage';
+import AdminPage from '../features/admin/AdminPage';
 import { useAuth, useEvent } from './providers';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -128,6 +129,15 @@ export const router = createBrowserRouter([
     element: <Shell />,
     errorElement: <ErrorPage />,
     children: [
+      // Platform admin management (global admins; server enforces)
+      {
+        path: 'admin',
+        element: (
+          <ProtectedRoute>
+            <AdminPage />
+          </ProtectedRoute>
+        ),
+      },
       // Events list (no event ID required)
       {
         path: 'events',

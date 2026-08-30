@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Gavel, RefreshCw } from "lucide-react";
+import { ClipboardList, Gavel, RefreshCw } from "lucide-react";
 import { useEventRole } from "@/hooks/useEventRole";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
@@ -11,7 +11,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/Dialog";
-import type { ProjectSubmission, LeaderboardEntry } from "@/types/api";
+import type { ProjectSubmission, LeaderboardEntry, JudgingScore } from "@/types/api";
 import * as judgingApi from "./judging.api";
 import { formatDateTime, formatScore } from "@/lib/formatters";
 import { useScopedEventId } from "@/app/providers";
@@ -56,6 +56,12 @@ export default function JudgingPage() {
   const [feedback, setFeedback] = useState("");
   const [savingScore, setSavingScore] = useState(false);
 
+  // Organizer score management: list a project's judge scores and edit them.
+  const [scoresProject, setScoresProject] = useState<ProjectSubmission | null>(null);
+  const [projectScores, setProjectScores] = useState<JudgingScore[]>([]);
+  const [scoresLoading, setScoresLoading] = useState(false);
+  const [editingScoreId, setEditingScoreId] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -83,7 +89,37 @@ export default function JudgingPage() {
   const openScoreDialog = (project: ProjectSubmission) => {
     setScores({ score_innovation: "", score_technical: "", score_presentation: "", score_usefulness: "" });
     setFeedback("");
+    setEditingScoreId(null);
     setScoringProject(project);
+  };
+
+  const openScoresDialog = async (project: ProjectSubmission) => {
+    setScoresProject(project);
+    setScoresLoading(true);
+    try {
+      setProjectScores(await judgingApi.listProjectScores(EVENT_ID, project.id));
+    } catch (err) {
+      setMessage({
+        type: "error",
+        text: err instanceof Error ? err.message : "Failed to load scores",
+      });
+      setScoresProject(null);
+    } finally {
+      setScoresLoading(false);
+    }
+  };
+
+  const openEditScore = (score: JudgingScore) => {
+    if (!scoresProject) return;
+    setScores({
+      score_innovation: String(score.score_innovation ?? ""),
+      score_technical: String(score.score_technical ?? ""),
+      score_presentation: String(score.score_presentation ?? ""),
+      score_usefulness: String(score.score_usefulness ?? ""),
+    });
+    setFeedback(score.feedback ?? "");
+    setEditingScoreId(score.id);
+    setScoringProject(scoresProject);
   };
 
   const scoresValid = DIMENSIONS.every((d) => {
@@ -93,17 +129,27 @@ export default function JudgingPage() {
 
   const handleSaveScore = async () => {
     if (!scoringProject || !scoresValid) return;
+    const payload = {
+      score_innovation: Number(scores.score_innovation),
+      score_technical: Number(scores.score_technical),
+      score_presentation: Number(scores.score_presentation),
+      score_usefulness: Number(scores.score_usefulness),
+      ...(feedback.trim() ? { feedback: feedback.trim() } : {}),
+    };
     setSavingScore(true);
     try {
-      await judgingApi.submitScore(EVENT_ID, scoringProject.id, {
-        score_innovation: Number(scores.score_innovation),
-        score_technical: Number(scores.score_technical),
-        score_presentation: Number(scores.score_presentation),
-        score_usefulness: Number(scores.score_usefulness),
-        ...(feedback.trim() ? { feedback: feedback.trim() } : {}),
-      });
-      setScoringProject(null);
-      setMessage({ type: "success", text: `Score saved for "${scoringProject.title}"` });
+      if (editingScoreId) {
+        await judgingApi.updateScore(EVENT_ID, editingScoreId, payload);
+        setScoringProject(null);
+        setEditingScoreId(null);
+        setMessage({ type: "success", text: `Score updated for "${scoringProject.title}"` });
+        // Keep the organizer's score list in sync with the edit.
+        await openScoresDialog(scoringProject);
+      } else {
+        await judgingApi.submitScore(EVENT_ID, scoringProject.id, payload);
+        setScoringProject(null);
+        setMessage({ type: "success", text: `Score saved for "${scoringProject.title}"` });
+      }
       await load();
     } catch (err) {
       setMessage({
@@ -193,7 +239,13 @@ export default function JudgingPage() {
                     <td className="px-4 py-3 text-gray-300">
                       {project.submitted_at ? formatDateTime(project.submitted_at) : "—"}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right space-x-1">
+                      {isOrganizer && (
+                        <Button variant="ghost" size="sm" onClick={() => openScoresDialog(project)}>
+                          <ClipboardList className="h-4 w-4 mr-1" />
+                          Scores
+                        </Button>
+                      )}
                       <Button variant="ghost" size="sm" onClick={() => openScoreDialog(project)}>
                         Score
                       </Button>
@@ -268,13 +320,28 @@ export default function JudgingPage() {
       )}
 
       {/* Score dialog */}
-      <Dialog open={scoringProject !== null} onOpenChange={(open) => !open && setScoringProject(null)}>
+      <Dialog
+        open={scoringProject !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setScoringProject(null);
+            setEditingScoreId(null);
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Score “{scoringProject?.title}”</DialogTitle>
+            <DialogTitle>
+              {editingScoreId ? "Edit Score — " : "Score “"}
+              {!editingScoreId && scoringProject?.title}
+              {editingScoreId && scoringProject ? `” for ${scoringProject.title}` : "”"}
+            </DialogTitle>
             <DialogDescription>
               Each dimension is scored 0–100. The total is weighted: innovation and technical 30%
-              each, presentation and impact 20% each. Scores cannot be edited after submission.
+              each, presentation and impact 20% each.
+              {editingScoreId
+                ? "You are adjusting this score as the organizer."
+                : "Scores are final once submitted; only organizers can adjust them later."}
             </DialogDescription>
           </DialogHeader>
           {scoringProject && (scoringProject.description || scoringProject.repo_url || scoringProject.demo_url) && (
@@ -329,7 +396,80 @@ export default function JudgingPage() {
               Cancel
             </Button>
             <Button onClick={handleSaveScore} disabled={!scoresValid || savingScore}>
-              {savingScore ? "Saving..." : "Submit Score"}
+              {savingScore ? "Saving..." : editingScoreId ? "Save Changes" : "Submit Score"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Organizer: per-project judge scores with organizer-authorized edits */}
+      <Dialog open={scoresProject !== null} onOpenChange={(open) => !open && setScoresProject(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Judge Scores — “{scoresProject?.title}”</DialogTitle>
+            <DialogDescription>
+              One score per judge. Scores are final for judges; as organizer you may adjust them
+              (the weighted total is recalculated).
+            </DialogDescription>
+          </DialogHeader>
+          {scoresLoading ? (
+            <div className="py-8 text-center text-gray-400">Loading scores...</div>
+          ) : projectScores.length === 0 ? (
+            <div className="py-8 text-center text-gray-400">
+              No scores yet for this project.
+            </div>
+          ) : (
+            <div className="max-h-[50vh] overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-900 border-b border-gray-800">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium text-gray-400">Judge</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-400">Innovation</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-400">Technical</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-400">Presentation</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-400">Impact</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-400">Total</th>
+                    <th className="px-3 py-2" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {projectScores.map((score) => (
+                    <tr key={score.id}>
+                      <td className="px-3 py-2 text-white">
+                        {score.judge_name ?? score.judge_email ?? "Judge"}
+                      </td>
+                      <td className="px-3 py-2 text-gray-300">{score.score_innovation ?? "—"}</td>
+                      <td className="px-3 py-2 text-gray-300">{score.score_technical ?? "—"}</td>
+                      <td className="px-3 py-2 text-gray-300">{score.score_presentation ?? "—"}</td>
+                      <td className="px-3 py-2 text-gray-300">{score.score_usefulness ?? "—"}</td>
+                      <td className={`px-3 py-2 font-semibold ${formatScore(Number(score.score_total)).color}`}>
+                        {formatScore(Number(score.score_total)).text}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <Button variant="ghost" size="sm" onClick={() => openEditScore(score)}>
+                          Edit
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {projectScores.some((s) => s.feedback) && (
+                <div className="mt-3 space-y-1 px-3 pb-2">
+                  {projectScores
+                    .filter((s) => s.feedback)
+                    .map((s) => (
+                      <p key={s.id} className="text-xs text-gray-400">
+                        <span className="text-gray-300">{s.judge_name ?? "Judge"}:</span> {s.feedback}
+                      </p>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setScoresProject(null)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

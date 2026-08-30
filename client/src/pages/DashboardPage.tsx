@@ -1,6 +1,7 @@
 import { useAuth, useEvent } from "../app/providers";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
+import { formatDate } from '@/lib/formatters';
 
 // Route segments under /events/:eventId/
 const QUICK_ACTIONS = [
@@ -56,7 +57,7 @@ export default function DashboardPage() {
           </h2>
           <p className="text-green-400">Active</p>
           <p className="text-gray-500 text-xs mt-1">
-            Member since {new Date(user.created_at).toLocaleDateString()}
+            Member since {formatDate(user.created_at)}
           </p>
         </div>
       </div>

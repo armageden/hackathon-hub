@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/ui/Badge';
 import type { HardwareCheckout } from '../types';
 import { Package, AlertTriangle } from 'lucide-react';
+import { formatRelativeTime, formatDateTime } from '@/lib/formatters';
 
 // API may enrich checkout rows with these display fields
 type EnrichedCheckout = HardwareCheckout & {
@@ -93,7 +94,7 @@ export function ReturnModal({ open, onOpenChange, checkout, organizers, onSubmit
                   <p className="font-medium text-white">{checkout.hardware_item_name}</p>
                   <p className="text-sm text-gray-400">Checked out: {formatRelativeTime(checkout.checked_out_at)}</p>
                   {checkout.due_at && (
-                    <p className="text-sm text-gray-400">Due: {new Date(checkout.due_at).toLocaleString()}</p>
+                    <p className="text-sm text-gray-400">Due: {formatDateTime(checkout.due_at)}</p>
                   )}
                   <div className="flex items-center gap-2 mt-1">
                     <StatusBadge status={checkout.status} />
@@ -159,6 +160,3 @@ export function ReturnModal({ open, onOpenChange, checkout, organizers, onSubmit
     </Dialog>
   );
 }
-
-// Need formatRelativeTime
-import { formatRelativeTime } from '@/lib/formatters';

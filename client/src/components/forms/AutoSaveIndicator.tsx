@@ -1,3 +1,4 @@
+import { formatRelativeTime } from '@/lib/formatters';
 import { useEffect, useState } from 'react';
 import { Save, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 
@@ -54,7 +55,7 @@ export function AutoSaveIndicator({ isDirty, isSaving, lastSaved, error }: AutoS
     return (
       <div className="flex items-center gap-2 text-sm text-gray-500">
         <Clock className="h-4 w-4 flex-shrink-0" />
-        <span>Saved {formatRelative(lastSaved)}</span>
+        <span>Saved {formatRelativeTime(lastSaved)}</span>
       </div>
     );
   }
@@ -65,18 +66,6 @@ export function AutoSaveIndicator({ isDirty, isSaving, lastSaved, error }: AutoS
       <span>Unsaved changes</span>
     </div>
   );
-}
-
-function formatRelative(date: Date): string {
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHour = Math.floor(diffMin / 60);
-
-  if (diffSec < 60) return 'just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
-  return `${diffHour}h ago`;
 }
 
 // Hook for auto-save functionality

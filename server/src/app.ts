@@ -15,6 +15,7 @@ import venueRoutes from "./modules/venue/venue.routes.js";
 import projectsRoutes from "./modules/projects/projects.routes.js";
 import judgingRoutes from "./modules/judging/judging.routes.js";
 import demoRoutes from "./modules/demo/demo.routes.js";
+import adminRoutes from "./modules/admin/admin.routes.js";
 import { authenticate } from "./middleware/auth.middleware.js";
 import { pool } from "./db/pool.js";
 
@@ -26,6 +27,7 @@ app.use(express.json());
 
 // Routes
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/events", eventsRoutes);
 app.use("/api/v1/events/:eventId/hardware", hardwareRoutes);
 app.use("/api/v1/events/:eventId/teams", teamsRoutes);

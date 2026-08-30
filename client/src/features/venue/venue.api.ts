@@ -39,6 +39,13 @@ export async function updateLocation(
   return res.location;
 }
 
+export async function deleteLocation(
+  eventId: string = getActiveEventId(),
+  locationId: string
+): Promise<void> {
+  await apiRequest(`/events/${eventId}/venue/locations/${locationId}`, { method: "DELETE" });
+}
+
 export async function listAssignments(
   eventId: string = getActiveEventId(),
   locationId?: string

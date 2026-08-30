@@ -6,6 +6,7 @@ export interface User {
   password_hash: string;
   full_name: string;
   global_role: "admin" | "user";
+  admin_expires_at?: Date | string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -15,6 +16,7 @@ export interface UserPublic {
   email: string;
   full_name: string;
   global_role: "admin" | "user";
+  admin_expires_at?: Date | string | null;
   created_at: Date;
   updated_at: Date;
 }

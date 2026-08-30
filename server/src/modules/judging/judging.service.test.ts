@@ -6,6 +6,9 @@ vi.mock("./judging.repository.js", () => ({
     findProjectById: vi.fn(),
     findByProjectAndJudge: vi.fn(),
     insertScore: vi.fn(),
+    getScoreById: vi.fn(),
+    updateScore: vi.fn(),
+    listScoresForProject: vi.fn(),
     getLeaderboard: vi.fn(),
   },
 }));
@@ -122,6 +125,20 @@ describe("judgingService.score", () => {
     );
   });
 
+  it("rejects a non-string feedback payload", async () => {
+    repo.findProjectById.mockResolvedValue(submittedProject);
+    repo.findByProjectAndJudge.mockResolvedValue(null);
+    await expect(
+      judgingService.score(
+        EVENT_ID,
+        PROJECT_ID,
+        { ...dims, feedback: 42 as unknown as string },
+        { id: JUDGE_ID }
+      )
+    ).rejects.toThrow("Feedback must be text");
+    expect(repo.insertScore).not.toHaveBeenCalled();
+  });
+
   it("accepts boundary scores of 0 and 100", async () => {
     repo.findProjectById.mockResolvedValue(submittedProject);
     repo.findByProjectAndJudge.mockResolvedValue(null);
@@ -133,6 +150,59 @@ describe("judgingService.score", () => {
       { id: JUDGE_ID }
     );
     expect(repo.insertScore).toHaveBeenCalled();
+  });
+});
+
+describe("judgingService.updateScore (organizer-authorized edits)", () => {
+  const SCORE_ID = "score-1";
+
+  beforeEach(() => vi.clearAllMocks());
+
+  it("rejects dimensions outside 0-100", async () => {
+    repo.getScoreById.mockResolvedValue({ id: SCORE_ID, project_submission_id: PROJECT_ID });
+    await expect(
+      judgingService.updateScore(EVENT_ID, SCORE_ID, { ...dims, score_presentation: 100.5 }, { id: "org-1" })
+    ).rejects.toThrow("between 0 and 100");
+    expect(repo.updateScore).not.toHaveBeenCalled();
+  });
+
+  it("rejects a non-string feedback payload", async () => {
+    repo.getScoreById.mockResolvedValue({ id: SCORE_ID, project_submission_id: PROJECT_ID });
+    await expect(
+      judgingService.updateScore(
+        EVENT_ID,
+        SCORE_ID,
+        { ...dims, feedback: true as unknown as string },
+        { id: "org-1" }
+      )
+    ).rejects.toThrow("Feedback must be text");
+    expect(repo.updateScore).not.toHaveBeenCalled();
+  });
+
+  it("recomputes the weighted total and persists the edit", async () => {
+    repo.getScoreById.mockResolvedValue({ id: SCORE_ID, project_submission_id: PROJECT_ID });
+    repo.updateScore.mockResolvedValue({ id: SCORE_ID, score_total: 80 });
+    const result = await judgingService.updateScore(
+      EVENT_ID,
+      SCORE_ID,
+      { score_innovation: 100, score_technical: 100, score_presentation: 50, score_usefulness: 50, feedback: "Adjusted" },
+      { id: "org-1" }
+    );
+    // 100(.3) + 100(.3) + 50(.2) + 50(.2) = 80
+    expect(repo.updateScore).toHaveBeenCalledWith(
+      EVENT_ID,
+      SCORE_ID,
+      expect.objectContaining({ score_total: 80, feedback: "Adjusted" })
+    );
+    expect(result.score_total).toBe(80);
+  });
+
+  it("throws NotFound when the score does not exist in this event", async () => {
+    repo.getScoreById.mockResolvedValue(null);
+    await expect(
+      judgingService.updateScore(EVENT_ID, "ghost", dims, { id: "org-1" })
+    ).rejects.toThrow("Score not found");
+    expect(repo.updateScore).not.toHaveBeenCalled();
   });
 });
 
@@ -161,5 +231,27 @@ describe("judgingService.listScorableProjects / leaderboard", () => {
     repo.getLeaderboard.mockResolvedValue(board);
     const result = await judgingService.leaderboard(EVENT_ID);
     expect(result).toEqual(board);
+  });
+});
+
+describe("judgingService.listScores (organizer score list)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("throws NotFound when the project does not exist in this event", async () => {
+    repo.findProjectById.mockResolvedValue(null);
+    await expect(judgingService.listScores(EVENT_ID, "ghost")).rejects.toThrow("Project not found");
+    expect(repo.listScoresForProject).not.toHaveBeenCalled();
+  });
+
+  it("returns the project's scores with judge identities", async () => {
+    repo.findProjectById.mockResolvedValue(submittedProject);
+    const rows = [
+      { id: "s1", judge_user_id: "j1", judge_name: "Judge One", score_total: "75.00" },
+      { id: "s2", judge_user_id: "j2", judge_name: "Judge Two", score_total: "60.00" },
+    ];
+    repo.listScoresForProject.mockResolvedValue(rows);
+    const result = await judgingService.listScores(EVENT_ID, PROJECT_ID);
+    expect(result).toEqual(rows);
+    expect(repo.listScoresForProject).toHaveBeenCalledWith(EVENT_ID, PROJECT_ID);
   });
 });

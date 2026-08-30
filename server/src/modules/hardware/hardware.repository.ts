@@ -86,8 +86,8 @@ export const hardwareRepository = {
 
   async create(eventId: string, data: CreateHardwareItemRequest, createdBy: string): Promise<HardwareItem> {
     const result = await pool.query(
-      `INSERT INTO hardware_items (event_id, name, category, model, serial_number, quantity_available, condition, location, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO hardware_items (event_id, name, category, model, serial_number, quantity_available, condition, status, location, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING id, event_id, name, category, model, serial_number, quantity_available, condition, status, location, notes, created_at, updated_at`,
       [
         eventId,
@@ -95,8 +95,9 @@ export const hardwareRepository = {
         data.category || null,
         data.model || null,
         data.serial_number || null,
-        data.quantity_available || 1,
+        data.quantity_available ?? 1,
         data.condition || 'good',
+        data.status || 'available',
         data.location || null,
         data.notes || null,
       ]
@@ -112,8 +113,8 @@ export const hardwareRepository = {
       const created: HardwareItem[] = [];
       for (const data of items) {
         const result = await client.query(
-          `INSERT INTO hardware_items (event_id, name, category, model, serial_number, quantity_available, condition, location, notes)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          `INSERT INTO hardware_items (event_id, name, category, model, serial_number, quantity_available, condition, status, location, notes)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
            RETURNING id, event_id, name, category, model, serial_number, quantity_available, condition, status, location, notes, created_at, updated_at`,
           [
             eventId,
@@ -121,8 +122,9 @@ export const hardwareRepository = {
             data.category || null,
             data.model || null,
             data.serial_number || null,
-            data.quantity_available || 1,
+            data.quantity_available ?? 1,
             data.condition || 'good',
+            data.status || 'available',
             data.location || null,
             data.notes || null,
           ]
@@ -162,6 +164,27 @@ export const hardwareRepository = {
       values
     );
     return result.rows[0] || null;
+  },
+
+  async writeStatusChangeAudit(
+    eventId: string,
+    itemId: string,
+    actorId: string | null,
+    oldItem: HardwareItem,
+    newItem: HardwareItem
+  ): Promise<void> {
+    // audit_logs.user_id is ON DELETE SET NULL, so history survives user deletion.
+    await pool.query(
+      `INSERT INTO audit_logs (event_id, user_id, action, entity_type, entity_id, old_values, new_values)
+       VALUES ($1, $2, 'status_change', 'hardware_item', $3, $4, $5)`,
+      [
+        eventId,
+        actorId,
+        itemId,
+        JSON.stringify({ status: oldItem.status, condition: oldItem.condition }),
+        JSON.stringify({ status: newItem.status, condition: newItem.condition }),
+      ]
+    );
   },
 
   async delete(eventId: string, itemId: string): Promise<boolean> {
@@ -406,7 +429,7 @@ export const hardwareRepository = {
     }
   },
 
-  async resolveDamageReport(eventId: string, reportId: string, resolvedBy: string): Promise<HardwareDamageReport | null> {
+  async resolveDamageReport(eventId: string, reportId: string, resolvedBy: string, restore = false): Promise<HardwareDamageReport | null> {
     // Resolving re-opens the linked checkout so the item can actually be
     // returned — previously 'damaged' was a terminal state that permanently
     // wedged the return flow and kept the unit decremented.
@@ -426,6 +449,25 @@ export const hardwareRepository = {
         await client.query(
           `UPDATE hardware_checkouts SET status = 'active' WHERE id = $1 AND status = 'damaged'`,
           [report.checkout_id]
+        );
+        // Restore only when the unit is no longer out in the field — if the
+        // checkout is active the item stays damaged until it comes back.
+        if (restore) {
+          const co = await client.query(
+            `SELECT status FROM hardware_checkouts WHERE id = $1`,
+            [report.checkout_id]
+          );
+          if (co.rows[0]?.status !== 'active') {
+            await client.query(
+              `UPDATE hardware_items SET condition = 'good', status = 'available', updated_at = NOW() WHERE id = $1`,
+              [report.hardware_item_id]
+            );
+          }
+        }
+      } else if (report && restore) {
+        await client.query(
+          `UPDATE hardware_items SET condition = 'good', status = 'available', updated_at = NOW() WHERE id = $1`,
+          [report.hardware_item_id]
         );
       }
 
@@ -586,6 +628,14 @@ export const hardwareRepository = {
          FROM hardware_damage_reports hdr
          JOIN users u ON hdr.reported_by = u.id
          WHERE hdr.hardware_item_id = $1 AND hdr.event_id = $2
+         UNION ALL
+         SELECT 'status_change', al.created_at, u.full_name,
+                json_build_object('from', al.old_values->>'status',
+                                  'to', al.new_values->>'status',
+                                  'condition', al.new_values->>'condition')
+         FROM audit_logs al
+         LEFT JOIN users u ON al.user_id = u.id
+         WHERE al.entity_type = 'hardware_item' AND al.entity_id = $1 AND al.action = 'status_change'
        ) events
        ORDER BY timestamp ASC`,
       [itemId, eventId]

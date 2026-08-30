@@ -21,6 +21,13 @@ router.put(
   venueController.updateLocation
 );
 
+router.delete(
+  "/locations/:locationId",
+  authenticate,
+  requireEventRole("organizer"),
+  venueController.deleteLocation
+);
+
 router.get(
   "/assignments",
   authenticate,

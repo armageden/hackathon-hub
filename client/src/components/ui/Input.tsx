@@ -137,7 +137,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
         <select
           ref={ref}
           id={selectId}
-          className={cn('input-base appearance-none bg-no-repeat bg-right pr-10', error && 'error', className)}
+          className={cn('input-base select-chevron appearance-none pr-10', error && 'error', className)}
           aria-invalid={error ? 'true' : 'false'}
           aria-describedby={error ? errorId : helperText ? helperId : undefined}
           {...props}

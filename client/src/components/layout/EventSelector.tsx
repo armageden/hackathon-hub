@@ -4,6 +4,7 @@ import { useEvent } from '@/app/providers';
 import { ChevronDown, Calendar, Plus } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { formatStatus } from '@/lib/formatters';
 
 export function EventSelector() {
   const { eventId, setEventId, events, loading } = useEvent();
@@ -80,7 +81,7 @@ export function EventSelector() {
                     event.status === 'draft' ? 'bg-yellow-500/20 text-yellow-400' :
                     'bg-gray-500/20 text-gray-400'
                   }`}>
-                    {event.status}
+                    {formatStatus(event.status)}
                   </span>
                   <span className="capitalize">{event.my_role}</span>
                 </div>

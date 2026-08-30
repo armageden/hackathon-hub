@@ -11,6 +11,7 @@ vi.mock("./venue.repository.js", () => ({
     insertAssignment: vi.fn(),
     updateAssignment: vi.fn(),
     cancelAssignment: vi.fn(),
+    deleteLocation: vi.fn(),
     findConflictingAssignment: vi.fn(),
     isTeamInEvent: vi.fn(),
     isProjectInEvent: vi.fn(),
@@ -352,5 +353,83 @@ describe("venueService.cancelAssignment", () => {
     repo.cancelAssignment.mockResolvedValue({ ...baseAssignment, status: "cancelled" });
     const result = await venueService.cancelAssignment(EVENT_ID, ASSIGNMENT_ID);
     expect(result.status).toBe("cancelled");
+  });
+});
+
+describe("no-op updates (regression: empty SET clause caused a 500)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("updateLocation with no recognized fields returns the existing record untouched", async () => {
+    repo.findLocationById.mockResolvedValue(baseLocation);
+    repo.updateLocation.mockImplementation(async () => {
+      throw new Error("UPDATE venue_locations SET  WHERE — SQL syntax error");
+    });
+    const result = await venueService.updateLocation(EVENT_ID, LOCATION_ID, {} as any);
+    expect(result).toEqual(baseLocation);
+    expect(repo.updateLocation).not.toHaveBeenCalled();
+  });
+
+  it("updateAssignment with no recognized fields returns the existing record untouched", async () => {
+    repo.findAssignmentById.mockResolvedValue(baseAssignment);
+    repo.findConflictingAssignment.mockResolvedValue(null);
+    repo.updateAssignment.mockImplementation(async () => {
+      throw new Error("UPDATE venue_assignments SET  WHERE — SQL syntax error");
+    });
+    const result = await venueService.updateAssignment(EVENT_ID, ASSIGNMENT_ID, {} as any);
+    expect(result).toEqual(baseAssignment);
+    expect(repo.updateAssignment).not.toHaveBeenCalled();
+  });
+
+  it("updateAssignment with only a status still persists the change", async () => {
+    repo.findAssignmentById.mockResolvedValue(baseAssignment);
+    repo.findConflictingAssignment.mockResolvedValue(null);
+    repo.updateAssignment.mockResolvedValue({ ...baseAssignment, status: "cancelled" });
+    const result = await venueService.updateAssignment(EVENT_ID, ASSIGNMENT_ID, { status: "cancelled" });
+    expect(result.status).toBe("cancelled");
+    expect(repo.updateAssignment).toHaveBeenCalledWith(EVENT_ID, ASSIGNMENT_ID, { status: "cancelled" });
+  });
+});
+
+describe("venueService location positions (map persistence)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("accepts numeric positions on update", async () => {
+    repo.findLocationById.mockResolvedValue(baseLocation);
+    repo.updateLocation.mockResolvedValue({ ...baseLocation, position_x: 120, position_y: 80 });
+    const result = await venueService.updateLocation(EVENT_ID, LOCATION_ID, { position_x: 120, position_y: 80 });
+    expect(repo.updateLocation).toHaveBeenCalledWith(EVENT_ID, LOCATION_ID, { position_x: 120, position_y: 80 });
+    expect(result.position_x).toBe(120);
+  });
+
+  it("rejects non-numeric positions", async () => {
+    repo.findLocationById.mockResolvedValue(baseLocation);
+    await expect(
+      venueService.updateLocation(EVENT_ID, LOCATION_ID, { position_x: "left" as any })
+    ).rejects.toThrow("Position must be a number");
+    expect(repo.updateLocation).not.toHaveBeenCalled();
+  });
+
+  it("accepts null to clear a saved position", async () => {
+    repo.findLocationById.mockResolvedValue(baseLocation);
+    repo.updateLocation.mockResolvedValue(baseLocation);
+    await venueService.updateLocation(EVENT_ID, LOCATION_ID, { position_x: null, position_y: null });
+    expect(repo.updateLocation).toHaveBeenCalledWith(EVENT_ID, LOCATION_ID, { position_x: null, position_y: null });
+  });
+});
+
+describe("venueService.deleteLocation", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("throws NotFound for a missing location", async () => {
+    repo.findLocationById.mockResolvedValue(null);
+    await expect(venueService.deleteLocation(EVENT_ID, "ghost")).rejects.toThrow("Venue location not found");
+    expect(repo.deleteLocation).not.toHaveBeenCalled();
+  });
+
+  it("deletes an existing location (assignments cascade)", async () => {
+    repo.findLocationById.mockResolvedValue(baseLocation);
+    repo.deleteLocation.mockResolvedValue(true);
+    await venueService.deleteLocation(EVENT_ID, LOCATION_ID);
+    expect(repo.deleteLocation).toHaveBeenCalledWith(EVENT_ID, LOCATION_ID);
   });
 });

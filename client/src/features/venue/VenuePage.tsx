@@ -147,18 +147,38 @@ export default function VenuePage() {
   }, [assignments]);
 
   const [mapPositions, setMapPositions] = useState<Record<string, { x: number; y: number }>>({});
+  const [deleteLocationTarget, setDeleteLocationTarget] = useState<VenueLocation | null>(null);
+  const [deleteLocationSaving, setDeleteLocationSaving] = useState(false);
   const mapLocations = useMemo(
     () =>
       locations.map((loc, i) => ({
         ...loc,
-        position_x: mapPositions[loc.id]?.x ?? 40 + (i % 4) * 240,
-        position_y: mapPositions[loc.id]?.y ?? 40 + Math.floor(i / 4) * 180,
+        position_x: mapPositions[loc.id]?.x ?? loc.position_x ?? 40 + (i % 4) * 240,
+        position_y: mapPositions[loc.id]?.y ?? loc.position_y ?? 40 + Math.floor(i / 4) * 180,
         size_width: 180,
         size_height: 120,
       })),
     [locations, mapPositions]
   );
   const [selectedMapLocationId, setSelectedMapLocationId] = useState<string | null>(null);
+
+  const handleDeleteLocation = async () => {
+    if (!deleteLocationTarget) return;
+    setDeleteLocationSaving(true);
+    try {
+      await venueApi.deleteLocation(EVENT_ID, deleteLocationTarget.id);
+      setDeleteLocationTarget(null);
+      setMessage({ type: "success", text: "Location deleted" });
+      await loadAll();
+    } catch (err) {
+      setMessage({
+        type: "error",
+        text: err instanceof Error ? err.message : "Failed to delete location",
+      });
+    } finally {
+      setDeleteLocationSaving(false);
+    }
+  };
 
   const openCreateLocation = () => {
     setEditingLocation(null);
@@ -357,14 +377,20 @@ export default function VenuePage() {
                 assignments={assignments.filter((a) => a.status === "active")}
                 selectedLocationId={selectedMapLocationId}
                 onLocationClick={(loc) => setSelectedMapLocationId(loc.id)}
-                onLocationDragEnd={(locationId, x, y) =>
-                  setMapPositions((prev) => ({ ...prev, [locationId]: { x, y } }))
-                }
+                onLocationDragEnd={(locationId, x, y) => {
+                  setMapPositions((prev) => ({ ...prev, [locationId]: { x, y } }));
+                  // Persist the layout so it survives reloads.
+                  venueApi
+                    .updateLocation(EVENT_ID, locationId, { position_x: x, position_y: y })
+                    .catch(() =>
+                      setMessage({ type: "error", text: "Could not save the map layout" })
+                    );
+                }}
                 width={1000}
                 height={Math.max(400, Math.ceil(locations.length / 4) * 180 + 80)}
               />
             </div>
-            <p className="mt-2 text-xs text-gray-500">Sketch layout — positions reset on refresh.</p>
+            <p className="mt-2 text-xs text-gray-500">Drag locations to arrange the layout — positions are saved automatically.</p>
           </>
         )
       ) : (
@@ -394,9 +420,17 @@ export default function VenuePage() {
                       <td className="px-4 py-3 text-gray-300">{loc.capacity ?? "—"}</td>
                       <td className="px-4 py-3 text-gray-300">{count}</td>
                       {canManage && (
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-3 text-right space-x-1">
                           <Button variant="ghost" size="sm" onClick={() => openEditLocation(loc)}>
                             Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-400 hover:text-red-300"
+                            onClick={() => setDeleteLocationTarget(loc)}
+                          >
+                            Delete
                           </Button>
                         </td>
                       )}
@@ -575,6 +609,29 @@ export default function VenuePage() {
               disabled={assignmentSaving || !assignmentForm.venue_location_id}
             >
               {assignmentSaving ? "Saving..." : editingAssignment ? "Save Changes" : "Book"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete location confirmation */}
+      <Dialog
+        open={deleteLocationTarget !== null}
+        onOpenChange={(open) => !open && setDeleteLocationTarget(null)}
+      >
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle>Delete “{deleteLocationTarget?.name}”?</DialogTitle>
+            <DialogDescription>
+              This removes the location and all of its bookings. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteLocationTarget(null)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDeleteLocation} disabled={deleteLocationSaving}>
+              {deleteLocationSaving ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

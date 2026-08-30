@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { config } from "../../config/index.js";
 import { authRepository } from "./auth.repository.js";
 import { ConflictError, AuthenticationError, NotFoundError } from "../../middleware/error.middleware.js";
+import { effectiveGlobalRole } from "../../middleware/role.middleware.js";
 import type { JwtPayload, UserPublic } from "../../types/index.js";
 
 export const authService = {
@@ -22,10 +23,10 @@ export const authService = {
     const token = generateToken({
       sub: user.id,
       email: user.email,
-      globalRole: user.global_role,
+      globalRole: effectiveGlobalRole(user) as "admin" | "user",
     });
 
-    return { user, token };
+    return { user: withEffectiveRole(user), token };
   },
 
   async login(
@@ -45,11 +46,10 @@ export const authService = {
     const token = generateToken({
       sub: user.id,
       email: user.email,
-      globalRole: user.global_role,
+      globalRole: effectiveGlobalRole(user) as "admin" | "user",
     });
 
-    const { password_hash: _, ...userPublic } = user;
-    return { user: userPublic, token };
+    return { user: withEffectiveRole(user), token };
   },
 
   async getMe(userId: string): Promise<UserPublic> {
@@ -57,9 +57,17 @@ export const authService = {
     if (!user) {
       throw new NotFoundError("User not found");
     }
-    return user;
+    return withEffectiveRole(user);
   },
 };
+
+// Apply the temporary-admin rule to what the API reports: a lapsed admin is
+// a plain user, so the client renders (and requests) accordingly.
+function withEffectiveRole<
+  T extends { global_role: string; admin_expires_at?: Date | string | null },
+>(user: T) {
+  return { ...user, global_role: effectiveGlobalRole(user) as "admin" | "user" };
+}
 
 function generateToken(payload: JwtPayload): string {
   return jwt.sign(payload, config.jwtSecret, {

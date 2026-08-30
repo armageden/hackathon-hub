@@ -25,6 +25,7 @@ import {
   X,
   ChevronDown,
   FlaskConical,
+  ShieldCheck,
 } from 'lucide-react';
 
 // Route segment under /events/:eventId/
@@ -167,6 +168,28 @@ export function Sidebar() {
         })}
       </nav>
 
+      {/* Platform admin management — global admins only (server enforces) */}
+      {user?.global_role === 'admin' && (
+        <div className={cn('border-t border-gray-800 py-3', collapsed ? 'px-2' : 'px-4')}>
+          <NavLink
+            to="/admin"
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+                collapsed && 'justify-center px-2',
+                isActive
+                  ? 'bg-indigo-500/10 text-indigo-400'
+                  : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+              )
+            }
+            title={collapsed ? 'Admins' : undefined}
+          >
+            <ShieldCheck className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+            {!collapsed && <span>Admins</span>}
+          </NavLink>
+        </div>
+      )}
+
       {/* Demo mode switch */}
       <div className={cn('border-t border-gray-800 py-3', collapsed ? 'px-2' : 'px-4')}>
         <DemoModeToggle collapsed={collapsed} />
@@ -278,6 +301,24 @@ export function MobileSidebar() {
         </nav>
 
         <div className="border-t border-gray-800 pt-4">
+          {user?.global_role === 'admin' && (
+            <div className="mb-4">
+              <NavLink
+                to="/admin"
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+                    isActive
+                      ? 'bg-indigo-500/10 text-indigo-400'
+                      : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                  )
+                }
+              >
+                <ShieldCheck className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                <span>Admins</span>
+              </NavLink>
+            </div>
+          )}
           <div className="mb-4">
             <DemoModeToggle />
           </div>

@@ -81,7 +81,7 @@ export const hardwareService = {
     return { created: created.length, items: created };
   },
 
-  async updateItem(eventId: string, itemId: string, data: UpdateHardwareItemRequest): Promise<HardwareItem> {
+  async updateItem(eventId: string, itemId: string, data: UpdateHardwareItemRequest, actorId?: string): Promise<HardwareItem> {
     const item = await hardwareRepository.getById(eventId, itemId);
     if (!item) throw new NotFoundError('Hardware item not found');
 
@@ -92,12 +92,16 @@ export const hardwareService = {
         throw new ValidationError('Invalid status');
       }
 
-      // Prevent changing status if item is checked out
+      // A checked-out unit is still in the field: it can only be marked
+      // damaged or lost, never retired or reset to available.
       if (item.status === 'checked_out' && data.status !== 'damaged' && data.status !== 'lost') {
-        const activeCheckout = await hardwareRepository.getActiveCheckoutForItem(itemId);
-        if (activeCheckout && data.status === 'available') {
-          throw new ConflictError('Cannot mark as available while checked out');
+        if (data.status === 'available') {
+          const activeCheckout = await hardwareRepository.getActiveCheckoutForItem(itemId);
+          if (activeCheckout) {
+            throw new ConflictError('Cannot mark as available while checked out');
+          }
         }
+        throw new ConflictError('Cannot change status while item is checked out');
       }
     }
 
@@ -116,6 +120,12 @@ export const hardwareService = {
 
     const updated = await hardwareRepository.update(eventId, itemId, data);
     if (!updated) throw new NotFoundError('Hardware item not found');
+
+    // Status transitions land in audit_logs so the item timeline can show
+    // them as auditable "status changed" history entries.
+    if (data.status !== undefined && data.status !== item.status) {
+      await hardwareRepository.writeStatusChangeAudit(eventId, itemId, actorId ?? null, item, updated);
+    }
     return updated;
   },
 
@@ -147,7 +157,7 @@ export const hardwareService = {
   async checkoutItem(
     eventId: string,
     data: CheckoutHardwareRequest,
-    actor: { id: string; globalRole: "admin" | "user" }
+    actor: { id: string; globalRole: "admin" | "user"; eventRole?: string }
   ): Promise<HardwareCheckout> {
     // Validate item exists and is available
     const item = await hardwareRepository.getById(eventId, data.hardware_item_id);
@@ -165,6 +175,16 @@ export const hardwareService = {
     }
     if (actor.globalRole !== 'admin' && !(await hardwareRepository.isEventMember(eventId, actor.id))) {
       throw new AuthorizationError('You are not an active member of this event');
+    }
+
+    // PRD: participants request checkouts for themselves; only organizers,
+    // volunteers, or platform admins check out on behalf of someone else.
+    const canBorrowForOthers =
+      actor.globalRole === 'admin' ||
+      actor.eventRole === 'organizer' ||
+      actor.eventRole === 'volunteer';
+    if (!canBorrowForOthers && data.borrower_user_id !== actor.id) {
+      throw new AuthorizationError('Participants can only check out items for themselves');
     }
 
     // Validate due date
@@ -203,6 +223,12 @@ export const hardwareService = {
         description: data.notes || 'Item returned in damaged condition',
         severity,
       };
+    }
+
+    // The receiving volunteer/organizer is recorded on the return record;
+    // they must be a member of this event, not a cross-event user.
+    if (!(await hardwareRepository.isEventMember(eventId, data.received_by))) {
+      throw new AuthorizationError('Received-by user is not an active member of this event');
     }
 
     // Per PRD: a damaged return automatically creates its damage report.
@@ -245,8 +271,8 @@ export const hardwareService = {
     return hardwareRepository.createDamageReport(eventId, data, reportedBy);
   },
 
-  async resolveDamageReport(eventId: string, reportId: string, resolvedBy: string): Promise<HardwareDamageReport> {
-    const report = await hardwareRepository.resolveDamageReport(eventId, reportId, resolvedBy);
+  async resolveDamageReport(eventId: string, reportId: string, resolvedBy: string, restore = false): Promise<HardwareDamageReport> {
+    const report = await hardwareRepository.resolveDamageReport(eventId, reportId, resolvedBy, restore);
     if (!report) throw new NotFoundError('Damage report not found');
     return report;
   },

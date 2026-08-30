@@ -21,6 +21,7 @@ import { ImportItemsDialog } from '../components/ImportItemsDialog';
 import { ItemDetailsModal } from '../components/ItemDetailsModal';
 import { Toaster, toast } from '@/components/ui/Toast';
 import { Package, QrCode } from 'lucide-react';
+import { formatStatus } from '@/lib/formatters';
 
 export default function HardwareDashboardPage({ eventId }: { eventId: string }) {
   const queryClient = useQueryClient();
@@ -54,7 +55,7 @@ export default function HardwareDashboardPage({ eventId }: { eventId: string }) 
       toast.success(`Scanned: ${item.name}`);
     } else {
       setDetailsItem({ id: item.id, name: item.name });
-      toast.info(`Scanned: ${item.name} (${item.status.replace('_', ' ')})`);
+      toast.info(`Scanned: ${item.name} (${formatStatus(item.status).toLowerCase()})`);
     }
     setSearchParams({}, { replace: true });
   }, [scannedItemId, scannedData, setSearchParams]);
@@ -162,6 +163,18 @@ export default function HardwareDashboardPage({ eventId }: { eventId: string }) 
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const resolveRestoreDamageReportMutation = useMutation({
+    mutationKey: ['hardware', 'resolve-damage-report-restore'],
+    mutationFn: (reportId: string) => hardwareApi.resolveDamageReport(eventId, reportId, true),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: hardwareQueryKeys.damageReports(eventId) });
+      queryClient.invalidateQueries({ queryKey: hardwareQueryKeys.items(eventId) });
+      queryClient.invalidateQueries({ queryKey: hardwareQueryKeys.analytics(eventId) });
+      toast.success('Damage report resolved — item restored to available');
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const importMutation = useMutation({
     mutationKey: ['hardware', 'import-items'],
     mutationFn: (items: CreateHardwareItemRequest[]) => hardwareApi.createItemsBulk(eventId, items),
@@ -216,6 +229,10 @@ export default function HardwareDashboardPage({ eventId }: { eventId: string }) 
 
   const handleResolveDamageReport = (reportId: string) => {
     resolveDamageReportMutation.mutate(reportId);
+  };
+
+  const handleResolveAndRestoreDamageReport = (reportId: string) => {
+    resolveRestoreDamageReportMutation.mutate(reportId);
   };
 
   const isLoading = createItemMutation.isPending || updateItemMutation.isPending;
@@ -287,6 +304,7 @@ export default function HardwareDashboardPage({ eventId }: { eventId: string }) 
               <DamageReportsTable
                 eventId={eventId}
                 onResolve={handleResolveDamageReport}
+                onResolveAndRestore={handleResolveAndRestoreDamageReport}
                 onViewDetails={setDetailsItem}
               />
             </CardContent>

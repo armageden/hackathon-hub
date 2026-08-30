@@ -21,6 +21,7 @@ vi.mock("./hardware.repository.js", () => ({
     markOverdue: vi.fn(),
     getItemTimeline: vi.fn(),
     isEventMember: vi.fn(),
+    writeStatusChangeAudit: vi.fn(),
   },
 }));
 
@@ -174,7 +175,10 @@ describe("hardwareService.checkoutItem", () => {
 });
 
 describe("hardwareService.returnItem", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    repo.isEventMember.mockResolvedValue(true);
+  });
 
   it("rejects return with invalid condition", async () => {
     repo.getCheckoutById.mockResolvedValue(activeCheckout);
@@ -282,5 +286,157 @@ describe("hardwareService.createDamageReport", () => {
       )
     ).rejects.toThrow("Checkout does not match hardware item");
     expect(repo.createDamageReport).not.toHaveBeenCalled();
+  });
+});
+
+describe("hardwareService.checkoutItem actor scope (PRD: participants borrow for themselves)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    repo.isEventMember.mockResolvedValue(true);
+  });
+  const due = () => new Date(Date.now() + 86400000).toISOString();
+
+  it("rejects a participant borrowing on behalf of another member", async () => {
+    repo.getById.mockResolvedValue(baseItem);
+    authRepo.findById.mockResolvedValue({ id: "user-2" });
+    await expect(
+      hardwareService.checkoutItem(
+        EVENT_ID,
+        { hardware_item_id: ITEM_ID, borrower_user_id: "user-2", due_at: due() },
+        { id: "user-1", globalRole: "user", eventRole: "participant" }
+      )
+    ).rejects.toThrow("for themselves");
+    expect(repo.checkout).not.toHaveBeenCalled();
+  });
+
+  it("lets a participant borrow for themselves", async () => {
+    repo.getById.mockResolvedValue(baseItem);
+    authRepo.findById.mockResolvedValue({ id: "user-1" });
+    repo.checkout.mockResolvedValue(activeCheckout);
+    await hardwareService.checkoutItem(
+      EVENT_ID,
+      { hardware_item_id: ITEM_ID, borrower_user_id: "user-1", due_at: due() },
+      { id: "user-1", globalRole: "user", eventRole: "participant" }
+    );
+    expect(repo.checkout).toHaveBeenCalledOnce();
+  });
+
+  it("allows an organizer to borrow on behalf of a participant", async () => {
+    repo.getById.mockResolvedValue(baseItem);
+    authRepo.findById.mockResolvedValue({ id: "user-2" });
+    repo.checkout.mockResolvedValue(activeCheckout);
+    await hardwareService.checkoutItem(
+      EVENT_ID,
+      { hardware_item_id: ITEM_ID, borrower_user_id: "user-2", due_at: due() },
+      { id: "org-1", globalRole: "user", eventRole: "organizer" }
+    );
+    expect(repo.checkout).toHaveBeenCalledOnce();
+  });
+
+  it("allows a volunteer to borrow on behalf of a participant", async () => {
+    repo.getById.mockResolvedValue(baseItem);
+    authRepo.findById.mockResolvedValue({ id: "user-2" });
+    repo.checkout.mockResolvedValue(activeCheckout);
+    await hardwareService.checkoutItem(
+      EVENT_ID,
+      { hardware_item_id: ITEM_ID, borrower_user_id: "user-2", due_at: due() },
+      { id: "vol-1", globalRole: "user", eventRole: "volunteer" }
+    );
+    expect(repo.checkout).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a judge borrowing on behalf of another member", async () => {
+    repo.getById.mockResolvedValue(baseItem);
+    authRepo.findById.mockResolvedValue({ id: "user-2" });
+    await expect(
+      hardwareService.checkoutItem(
+        EVENT_ID,
+        { hardware_item_id: ITEM_ID, borrower_user_id: "user-2", due_at: due() },
+        { id: "judge-1", globalRole: "user", eventRole: "judge" }
+      )
+    ).rejects.toThrow("for themselves");
+    expect(repo.checkout).not.toHaveBeenCalled();
+  });
+});
+
+describe("hardwareService.returnItem received_by scope", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("rejects a return received by someone who is not an event member", async () => {
+    repo.getCheckoutById.mockResolvedValue(activeCheckout);
+    repo.isEventMember.mockResolvedValue(false);
+    await expect(
+      hardwareService.returnItem(EVENT_ID, { checkout_id: "co-1", condition: "good", received_by: "outsider-1" })
+    ).rejects.toThrow("not an active member of this event");
+    expect(repo.returnHardware).not.toHaveBeenCalled();
+  });
+});
+
+describe("hardwareService.updateItem status transitions", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("rejects retiring a checked-out item", async () => {
+    repo.getById.mockResolvedValue({ ...baseItem, status: "checked_out" });
+    repo.getActiveCheckoutForItem.mockResolvedValue(activeCheckout);
+    await expect(
+      hardwareService.updateItem(EVENT_ID, ITEM_ID, { status: "retired" })
+    ).rejects.toThrow("Cannot change status while item is checked out");
+    expect(repo.update).not.toHaveBeenCalled();
+  });
+
+  it("allows marking a checked-out item lost", async () => {
+    repo.getById.mockResolvedValue({ ...baseItem, status: "checked_out" });
+    repo.getActiveCheckoutForItem.mockResolvedValue(activeCheckout);
+    repo.update.mockResolvedValue({ ...baseItem, status: "lost" });
+    const result = await hardwareService.updateItem(EVENT_ID, ITEM_ID, { status: "lost" });
+    expect(result.status).toBe("lost");
+  });
+
+  it("allows marking a checked-out item damaged", async () => {
+    repo.getById.mockResolvedValue({ ...baseItem, status: "checked_out" });
+    repo.getActiveCheckoutForItem.mockResolvedValue(activeCheckout);
+    repo.update.mockResolvedValue({ ...baseItem, status: "damaged" });
+    const result = await hardwareService.updateItem(EVENT_ID, ITEM_ID, { status: "damaged" });
+    expect(result.status).toBe("damaged");
+  });
+});
+
+describe("hardwareService.updateItem audit trail (status_change timeline)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("records a status_change audit entry when the status changes", async () => {
+    repo.getById.mockResolvedValue(baseItem);
+    repo.update.mockResolvedValue({ ...baseItem, status: "lost" });
+    await hardwareService.updateItem(EVENT_ID, ITEM_ID, { status: "lost" }, "admin-1");
+    expect(repo.writeStatusChangeAudit).toHaveBeenCalledWith(
+      EVENT_ID,
+      ITEM_ID,
+      "admin-1",
+      expect.objectContaining({ status: "available" }),
+      expect.objectContaining({ status: "lost" })
+    );
+  });
+
+  it("does not record an audit entry when status is unchanged", async () => {
+    repo.getById.mockResolvedValue(baseItem);
+    repo.update.mockResolvedValue(baseItem);
+    await hardwareService.updateItem(EVENT_ID, ITEM_ID, { name: "Renamed" });
+    expect(repo.writeStatusChangeAudit).not.toHaveBeenCalled();
+  });
+});
+
+describe("hardwareService.resolveDamageReport restore option", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("passes the restore flag through to the repository", async () => {
+    repo.resolveDamageReport.mockResolvedValue({ id: "dr-1", status: "resolved" });
+    await hardwareService.resolveDamageReport(EVENT_ID, "dr-1", "admin-1", true);
+    expect(repo.resolveDamageReport).toHaveBeenCalledWith(EVENT_ID, "dr-1", "admin-1", true);
+  });
+
+  it("defaults to no restore", async () => {
+    repo.resolveDamageReport.mockResolvedValue({ id: "dr-1", status: "resolved" });
+    await hardwareService.resolveDamageReport(EVENT_ID, "dr-1", "admin-1");
+    expect(repo.resolveDamageReport).toHaveBeenCalledWith(EVENT_ID, "dr-1", "admin-1", false);
   });
 });

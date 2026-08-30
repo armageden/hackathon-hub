@@ -13,6 +13,8 @@ const judgingApi = vi.hoisted(() => ({
   listScorableProjects: vi.fn(),
   submitScore: vi.fn(),
   getLeaderboard: vi.fn(),
+  listProjectScores: vi.fn(),
+  updateScore: vi.fn(),
 }));
 
 vi.mock("./judging.api", () => judgingApi);
@@ -121,5 +123,88 @@ describe("JudgingPage", () => {
     ).toBeInTheDocument();
     const inputs = screen.getAllByRole("spinbutton");
     expect(inputs).toHaveLength(4);
+  });
+});
+
+describe("JudgingPage organizer score management", () => {
+  const asOrganizer = {
+    eventRole: "organizer",
+    loading: false,
+    isOrganizer: true,
+    isVolunteer: false,
+    isParticipant: false,
+    isJudge: false,
+    canManage: true,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    judgingApi.getLeaderboard.mockResolvedValue([]);
+    judgingApi.listScorableProjects.mockResolvedValue([scorable]);
+    judgingApi.listProjectScores.mockResolvedValue([]);
+    judgingApi.updateScore.mockResolvedValue({});
+    useEventRole.mockReturnValue(asOrganizer);
+  });
+
+  it("shows the Scores action for organizers in the score queue", async () => {
+    render(<JudgingPage />);
+    expect(await screen.findByRole("button", { name: /scores/i })).toBeInTheDocument();
+  });
+
+  it("lists a project's judge scores with judge names and an Edit action", async () => {
+    judgingApi.listProjectScores.mockResolvedValue([
+      {
+        id: "score-1",
+        project_submission_id: "proj-1",
+        judge_user_id: "j1",
+        judge_name: "Judge One",
+        score_total: "75.00",
+        score_innovation: 80,
+        score_technical: 70,
+        score_presentation: 90,
+        score_usefulness: 60,
+        feedback: "Solid build",
+      },
+    ]);
+    const user = userEvent.setup();
+    render(<JudgingPage />);
+    await user.click(await screen.findByRole("button", { name: /scores/i }));
+    expect(await screen.findByText("Judge One")).toBeInTheDocument();
+    expect(screen.getByText("Solid build")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+  });
+
+  it("saves an organizer edit through updateScore with the score id", async () => {
+    judgingApi.listProjectScores.mockResolvedValue([
+      {
+        id: "score-1",
+        project_submission_id: "proj-1",
+        judge_user_id: "j1",
+        judge_name: "Judge One",
+        score_total: "75.00",
+        score_innovation: 80,
+        score_technical: 70,
+        score_presentation: 90,
+        score_usefulness: 60,
+      },
+    ]);
+    const user = userEvent.setup();
+    render(<JudgingPage />);
+    await user.click(await screen.findByRole("button", { name: /scores/i }));
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
+
+    // The score dialog opens pre-filled in edit mode; Innovation is the first input.
+    const innovation = screen.getAllByPlaceholderText("0–100")[0];
+    await user.clear(innovation);
+    await user.type(innovation, "100");
+    await user.click(screen.getByRole("button", { name: "Save Changes" }));
+
+    await waitFor(() => expect(judgingApi.updateScore).toHaveBeenCalled());
+    expect(judgingApi.updateScore).toHaveBeenCalledWith(
+      "e0000000-0000-0000-0000-000000000001",
+      "score-1",
+      expect.objectContaining({ score_innovation: 100, score_technical: 70 })
+    );
+    expect(judgingApi.submitScore).not.toHaveBeenCalled();
   });
 });

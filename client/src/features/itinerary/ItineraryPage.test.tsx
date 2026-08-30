@@ -73,7 +73,7 @@ describe("ItineraryPage", () => {
     render(<ItineraryPage />);
     expect(await screen.findByText("Opening Ceremony")).toBeInTheDocument();
     expect(screen.getByText("Closing")).toBeInTheDocument();
-    expect(screen.getAllByText("ceremony")).toHaveLength(2);
+    expect(screen.getAllByText("Ceremony")).toHaveLength(2);
   });
 
   it("shows Add Item button for organizers only", () => {

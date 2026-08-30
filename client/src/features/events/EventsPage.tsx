@@ -3,7 +3,7 @@
 import { useEvent } from '@/app/providers';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Plus, Users, ArrowRight } from 'lucide-react';
-import { formatDate, formatDateRange } from '@/lib/formatters';
+import { formatDate, formatDateRange, formatStatus } from '@/lib/formatters';
 
 export default function EventsPage() {
   const { events, loading, setEventId } = useEvent();
@@ -75,7 +75,7 @@ export default function EventsPage() {
                     event.status === 'draft' ? 'bg-yellow-500/20 text-yellow-400' :
                     'bg-gray-500/20 text-gray-400'
                   }`}>
-                    {event.status}
+                    {formatStatus(event.status)}
                   </span>
                 </div>
 

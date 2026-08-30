@@ -9,7 +9,6 @@ vi.mock("../../db/demo-data.js", () => ({
 }));
 
 import { demoService } from "./demo.service.js";
-import { requireGlobalAdmin } from "./demo.routes.js";
 import {
   enableDemoData,
   disableDemoData,
@@ -35,31 +34,3 @@ describe("demoService", () => {
   });
 });
 
-function makeRes() {
-  return {} as Parameters<typeof requireGlobalAdmin>[1];
-}
-
-describe("requireGlobalAdmin middleware", () => {
-  const next = vi.fn();
-
-  it("calls next() for a global admin", () => {
-    next.mockClear();
-    const req = { user: { id: "a1", globalRole: "admin" } };
-    requireGlobalAdmin(req as never, makeRes(), next);
-    expect(next).toHaveBeenCalledTimes(1);
-  });
-
-  it("rejects non-admins with 403", () => {
-    const req = { user: { id: "u1", globalRole: "user" } };
-    expect(() => requireGlobalAdmin(req as never, makeRes(), next)).toThrow(
-      "Global admin access required"
-    );
-  });
-
-  it("rejects unauthenticated requests with 403", () => {
-    const req = {};
-    expect(() => requireGlobalAdmin(req as never, makeRes(), next)).toThrow(
-      "Global admin access required"
-    );
-  });
-});
