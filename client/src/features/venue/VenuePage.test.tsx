@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("@/app/providers", () => ({
@@ -47,6 +47,7 @@ const venueApi = vi.hoisted(() => ({
   createAssignment: vi.fn(),
   updateAssignment: vi.fn(),
   cancelAssignment: vi.fn(),
+  deleteLocation: vi.fn(),
 }));
 
 vi.mock("./venue.api", () => ({ ...venueApi, default: venueApi }));
@@ -124,5 +125,63 @@ describe("VenuePage", () => {
     venueApi.listAssignments.mockResolvedValue([]);
     render(<VenuePage />);
     expect(await screen.findByText(/database unavailable/i)).toBeInTheDocument();
+  });
+});
+
+describe("VenuePage organizer location management", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("offers Delete for each location and removes it after confirmation", async () => {
+    venueApi.listLocations.mockResolvedValue([
+      {
+        id: "loc-1",
+        event_id: "evt-1",
+        name: "Table 1",
+        location_type: "table",
+        capacity: 4,
+        description: null,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+    venueApi.listAssignments.mockResolvedValue([]);
+    venueApi.deleteLocation.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+
+    render(<VenuePage />);
+    await user.click(await screen.findByRole("button", { name: /Locations \(/i }));
+    expect(await screen.findByText("Table 1")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/This removes the location and all of its bookings/)).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+    await waitFor(() => expect(venueApi.deleteLocation).toHaveBeenCalledWith(
+      "e0000000-0000-0000-0000-000000000001",
+      "loc-1"
+    ));
+  });
+
+  it("renders the map with server-saved positions", async () => {
+    venueApi.listLocations.mockResolvedValue([
+      {
+        id: "loc-9",
+        event_id: "evt-1",
+        name: "Stage Right",
+        location_type: "stage",
+        capacity: 50,
+        description: null,
+        position_x: 321,
+        position_y: 123,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+    venueApi.listAssignments.mockResolvedValue([]);
+    render(<VenuePage />);
+    const user2 = userEvent.setup();
+    await user2.click(await screen.findByRole("button", { name: "Map" }));
+    expect(await screen.findByTestId("venue-map-stub")).toBeInTheDocument();
+    // Saved positions flow from the API records into the map (no auto-layout fallback needed).
+    expect(venueApi.updateLocation).not.toHaveBeenCalled();
   });
 });

@@ -66,6 +66,14 @@ export function formatDate(date: Date | string, options?: Intl.DateTimeFormatOpt
 }
 
 /**
+ * Format a date as a short axis/tick label (e.g., "Jan 15")
+ */
+export function formatShortDate(date: Date | string): string {
+  const d = typeof date === 'string' ? parseISO(date) : date;
+  return format(d, 'MMM d');
+}
+
+/**
  * Format a date and time for display
  */
 export function formatDateTime(date: Date | string): string {

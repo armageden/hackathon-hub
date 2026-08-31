@@ -13,6 +13,7 @@ import {
   AlertCircle,
   RefreshCw 
 } from 'lucide-react';
+import { formatDateTime } from '@/lib/formatters';
 
 interface DatabaseHealthData {
   database: string;
@@ -214,7 +215,7 @@ export function DatabaseStatusCard() {
                 {health.recent_migrations.map((m) => (
                   <div key={m.id} className="flex items-center justify-between p-2 bg-gray-800 rounded">
                     <code className="text-xs font-mono text-gray-300">{m.filename}</code>
-                    <span className="text-xs text-gray-500">{new Date(m.applied_at).toLocaleString()}</span>
+                    <span className="text-xs text-gray-500">{formatDateTime(m.applied_at)}</span>
                   </div>
                 ))}
               </div>

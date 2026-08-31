@@ -38,14 +38,29 @@ export const venueController = {
       const locationId = p(req, "locationId");
       if (!eventId || !locationId)
         throw new ValidationError("Event ID and Location ID are required");
-      const { name, location_type, capacity, description } = req.body;
+      const { name, location_type, capacity, description, position_x, position_y } = req.body;
       const location = await venueService.updateLocation(eventId, locationId, {
         name,
         location_type,
         capacity,
         description,
+        position_x,
+        position_y,
       });
       res.json({ success: true, data: { location } });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async deleteLocation(req: Request, res: Response, next: NextFunction) {
+    try {
+      const eventId = p(req, "eventId");
+      const locationId = p(req, "locationId");
+      if (!eventId || !locationId)
+        throw new ValidationError("Event ID and Location ID are required");
+      await venueService.deleteLocation(eventId, locationId);
+      res.json({ success: true, data: { message: "Location deleted" } });
     } catch (err) {
       next(err);
     }

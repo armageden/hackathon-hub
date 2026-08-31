@@ -8,7 +8,7 @@ import { LineChart } from '@/components/charts/LineChart';
 import { BarChart } from '@/components/charts/BarChart';
 import { PieChart } from '@/components/charts/PieChart';
 import { hardwareApi, hardwareQueryKeys } from '../api';
-import { formatCompact } from '@/lib/formatters';
+import { formatCompact, formatShortDate } from '@/lib/formatters';
 import { Package, CheckCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -132,7 +132,7 @@ export function AnalyticsDashboard({ eventId }: AnalyticsDashboardProps) {
                 ]}
                 height={300}
                 showTooltip={true}
-                xAxisFormatter={(v) => new Date(v as string).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                xAxisFormatter={(v) => formatShortDate(v as string)}
                 yAxisFormatter={(v) => v.toString()}
               />
             ) : (

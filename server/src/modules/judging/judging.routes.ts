@@ -19,6 +19,22 @@ router.post(
   judgingController.score
 );
 
+// Score list for a project — judges see their own context, organizers manage edits.
+router.get(
+  "/projects/:projectId/scores",
+  authenticate,
+  requireEventRole("judge", "organizer"),
+  judgingController.listScores
+);
+
+// PRD: scores are final unless the organizer allows an edit — organizer-only.
+router.put(
+  "/scores/:scoreId",
+  authenticate,
+  requireEventRole("organizer"),
+  judgingController.updateScore
+);
+
 router.get(
   "/leaderboard",
   authenticate,

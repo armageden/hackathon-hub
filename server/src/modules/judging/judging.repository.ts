@@ -85,6 +85,64 @@ export const judgingRepository = {
     }
   },
 
+  async getScoreById(eventId: string, scoreId: string) {
+    // Event-scoped lookup: a score is only visible through its project's event.
+    const result = await pool.query(
+      `SELECT s.* FROM judging_scores s
+       JOIN project_submissions p ON p.id = s.project_submission_id
+       WHERE s.id = $1 AND p.event_id = $2`,
+      [scoreId, eventId]
+    );
+    return result.rows[0] ?? null;
+  },
+
+  async listScoresForProject(eventId: string, projectId: string) {
+    const result = await pool.query(
+      `SELECT s.*, u.full_name AS judge_name, u.email AS judge_email
+       FROM judging_scores s
+       JOIN users u ON u.id = s.judge_user_id
+       JOIN project_submissions p ON p.id = s.project_submission_id
+       WHERE s.project_submission_id = $1 AND p.event_id = $2
+       ORDER BY s.submitted_at ASC`,
+      [projectId, eventId]
+    );
+    return result.rows;
+  },
+
+  async updateScore(
+    eventId: string,
+    scoreId: string,
+    data: {
+      score_total: number;
+      score_innovation: number;
+      score_technical: number;
+      score_presentation: number;
+      score_usefulness: number;
+      feedback: string | null;
+    }
+  ) {
+    // WHERE is scoped by event so a score from another event can never be touched.
+    const result = await pool.query(
+      `UPDATE judging_scores s
+       SET score_total = $3, score_innovation = $4, score_technical = $5,
+           score_presentation = $6, score_usefulness = $7, feedback = $8
+       FROM project_submissions p
+       WHERE s.id = $1 AND s.project_submission_id = p.id AND p.event_id = $2
+       RETURNING s.*`,
+      [
+        scoreId,
+        eventId,
+        data.score_total,
+        data.score_innovation,
+        data.score_technical,
+        data.score_presentation,
+        data.score_usefulness,
+        data.feedback,
+      ]
+    );
+    return result.rows[0] ?? null;
+  },
+
   // Leaderboard is computed by SQL aggregation, never stored (PRD rule).
   async getLeaderboard(eventId: string) {
     const result = await pool.query(

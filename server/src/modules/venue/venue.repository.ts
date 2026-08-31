@@ -94,6 +94,16 @@ export const venueRepository = {
     return result.rows[0] ?? null;
   },
 
+  async deleteLocation(eventId: string, locationId: string) {
+    // venue_assignments.venue_location_id is ON DELETE CASCADE, so bookings
+    // for this location are removed with it.
+    const result = await pool.query(
+      `DELETE FROM venue_locations WHERE event_id = $1 AND id = $2`,
+      [eventId, locationId]
+    );
+    return result.rowCount !== null && result.rowCount > 0;
+  },
+
   async listAssignmentsByEvent(eventId: string, filters: VenueAssignmentFilters) {
     const params: any[] = [eventId];
     let where = `WHERE a.event_id = $1`;

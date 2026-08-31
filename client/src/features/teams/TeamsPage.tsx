@@ -15,6 +15,7 @@ import {
 import type { Team, ParticipantProfile, TechTag } from "./teams.types";
 import { useEventRole } from "../../hooks/useEventRole";
 import { useScopedEventId } from "../../app/providers";
+import { formatStatus } from '@/lib/formatters';
 
 type Tab = "teams" | "profile" | "browse";
 
@@ -367,12 +368,12 @@ export default function TeamsPage() {
                             </div>
                             <span
                               className={`text-xs px-2 py-0.5 rounded-full ${
-                                team.status === "open"
+                                team.status === "forming"
                                   ? "bg-emerald-900/50 text-emerald-300"
                                   : "bg-gray-800 text-gray-400"
                               }`}
                             >
-                              {team.status}
+                              {formatStatus(team.status)}
                             </span>
                           </div>
 

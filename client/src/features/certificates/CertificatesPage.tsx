@@ -9,7 +9,7 @@ import {
 import type { Certificate, EligibilityEntry } from "./certificates.types";
 import { useEventRole } from "../../hooks/useEventRole";
 import { useScopedEventId } from "../../app/providers";
-import { formatDateTime } from "@/lib/formatters";
+import { formatDateTime, formatStatus } from "@/lib/formatters";
 
 type Tab = "certificates" | "eligibility";
 
@@ -278,12 +278,12 @@ export default function CertificatesPage() {
                         <td className="whitespace-nowrap px-6 py-3 text-gray-300">{cert.email}</td>
                         <td className="whitespace-nowrap px-6 py-3">
                           <Badge className={CERT_TYPE_COLORS[cert.certificate_type] || "bg-gray-500/20 text-gray-400 border border-gray-500/30"}>
-                            {cert.certificate_type}
+                            {formatStatus(cert.certificate_type)}
                           </Badge>
                         </td>
                         <td className="whitespace-nowrap px-6 py-3">
                           <Badge className={STATUS_COLORS[cert.status] || "bg-gray-500/20 text-gray-400 border border-gray-500/30"}>
-                            {cert.status}
+                            {formatStatus(cert.status)}
                           </Badge>
                         </td>
                         <td className="whitespace-nowrap px-6 py-3 text-gray-300">{formatDate(cert.issued_at)}</td>

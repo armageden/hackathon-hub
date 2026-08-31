@@ -16,7 +16,7 @@ import { Package, Search, Package as PackageIcon, MapPin, Info } from 'lucide-re
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { hardwareMutationKeys } from '../api';
 import { useAuth } from '@/app/providers';
-import { getDueState, dueStateStyles } from '@/lib/formatters';
+import { getDueState, dueStateStyles, formatStatus, formatDateTime } from '@/lib/formatters';
 
 export default function HardwareBrowsePage({ eventId }: { eventId: string }) {
   const queryClient = useQueryClient();
@@ -46,7 +46,7 @@ export default function HardwareBrowsePage({ eventId }: { eventId: string }) {
       setCheckoutModalOpen(true);
       toast.success(`Scanned: ${item.name}`);
     } else {
-      toast.info(`"${item.name}" is ${item.status.replace('_', ' ')} right now`);
+      toast.info(`"${item.name}" is ${formatStatus(item.status).toLowerCase()} right now`);
     }
     setSearchParams({}, { replace: true });
   }, [scannedItemId, scannedData, setSearchParams]);
@@ -208,12 +208,12 @@ export default function HardwareBrowsePage({ eventId }: { eventId: string }) {
                         <div>
                           <p className="font-medium text-white">{checkout.hardware_item_name}</p>
                           <p className="text-sm text-gray-400">
-                            Checked out: {new Date(checkout.checked_out_at).toLocaleString()}
+                            Checked out: {formatDateTime(checkout.checked_out_at)}
                             {checkout.due_at && (
                               <>
                                 {' · '}
                                 <span className={dueStateStyles[getDueState(checkout.due_at, checkout.status)].text}>
-                                  Due: {new Date(checkout.due_at).toLocaleString()}
+                                  Due: {formatDateTime(checkout.due_at)}
                                   {getDueState(checkout.due_at, checkout.status) === 'overdue' && ' (OVERDUE)'}
                                 </span>
                               </>

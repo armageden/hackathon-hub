@@ -41,6 +41,45 @@ export const judgingController = {
     }
   },
 
+  async listScores(req: Request, res: Response, next: NextFunction) {
+    try {
+      const eventId = p(req, "eventId");
+      const projectId = p(req, "projectId");
+      if (!eventId || !projectId)
+        throw new ValidationError("Event ID and Project ID are required");
+      const scores = await judgingService.listScores(eventId, projectId);
+      res.json({ success: true, data: { scores } });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async updateScore(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const eventId = p(req, "eventId");
+      const scoreId = p(req, "scoreId");
+      if (!eventId || !scoreId)
+        throw new ValidationError("Event ID and Score ID are required");
+      if (!req.user) throw new ValidationError("Authentication required");
+      const {
+        score_innovation,
+        score_technical,
+        score_presentation,
+        score_usefulness,
+        feedback,
+      } = req.body;
+      const score = await judgingService.updateScore(
+        eventId,
+        scoreId,
+        { score_innovation, score_technical, score_presentation, score_usefulness, feedback },
+        { id: req.user.id }
+      );
+      res.json({ success: true, data: { score } });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async leaderboard(req: Request, res: Response, next: NextFunction) {
     try {
       const eventId = p(req, "eventId");

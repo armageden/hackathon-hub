@@ -88,8 +88,8 @@ describe("CertificatesPage", () => {
     render(<CertificatesPage />);
     expect(await screen.findByText("Alice")).toBeInTheDocument();
     expect(screen.getByText("alice@example.com")).toBeInTheDocument();
-    expect(screen.getByText("attendance")).toBeInTheDocument();
-    expect(screen.getByText("issued")).toBeInTheDocument();
+    expect(screen.getByText("Attendance")).toBeInTheDocument();
+    expect(screen.getByText("Issued")).toBeInTheDocument();
     expect(screen.getByText("ABC123")).toBeInTheDocument();
   });
 

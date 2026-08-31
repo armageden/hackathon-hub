@@ -3,7 +3,7 @@ import type { ItineraryItem } from "./itinerary.types";
 import { listItinerary, createItinerary, updateItinerary } from "./itinerary.api";
 import { useEventRole } from "../../hooks/useEventRole";
 import { useScopedEventId } from "../../app/providers";
-import { formatDateTime } from "@/lib/formatters";
+import { formatDateTime, formatStatus } from "@/lib/formatters";
 
 const SESSION_TYPE_COLORS: Record<string, string> = {
   ceremony: "bg-purple-500/20 text-purple-400 border-purple-500/30",
@@ -250,14 +250,14 @@ export default function ItineraryPage() {
                               SESSION_TYPE_COLORS.general
                             }`}
                           >
-                            {item.session_type}
+                            {formatStatus(item.session_type)}
                           </span>
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
                               STATUS_COLORS[item.status] || STATUS_COLORS.active
                             }`}
                           >
-                            {item.status}
+                            {formatStatus(item.status)}
                           </span>
                         </div>
 

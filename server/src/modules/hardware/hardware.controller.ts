@@ -141,7 +141,7 @@ export const hardwareController = {
       if (!req.user) throw new AuthorizationError('Authentication required');
 
       const data = updateHardwareItemSchema.parse(req.body);
-      const item = await hardwareService.updateItem(eventId, itemId, data);
+      const item = await hardwareService.updateItem(eventId, itemId, data, req.user.id);
 
       res.json({ success: true, data: item });
     } catch (err) {
@@ -198,7 +198,10 @@ export const hardwareController = {
       if (!req.user) throw new AuthorizationError('Authentication required');
 
       const data = checkoutSchema.parse(req.body);
-      const checkout = await hardwareService.checkoutItem(eventId, data, req.user);
+      // eventRole is stamped by requireEventRoleOrAdmin and distinguishes
+      // "borrowing for self" (participants) from "borrowing for others".
+      const eventRole = (req as any).eventRole as string | undefined;
+      const checkout = await hardwareService.checkoutItem(eventId, data, { ...req.user, eventRole });
 
       res.status(201).json({ success: true, data: checkout });
     } catch (err) {
@@ -260,7 +263,12 @@ export const hardwareController = {
 
       if (!req.user) throw new AuthorizationError('Authentication required');
 
-      const report = await hardwareService.resolveDamageReport(eventId, reportId, req.user.id);
+      const report = await hardwareService.resolveDamageReport(
+        eventId,
+        reportId,
+        req.user.id,
+        Boolean((req.body as { restore?: boolean } | undefined)?.restore)
+      );
       res.json({ success: true, data: report });
     } catch (err) {
       next(err);

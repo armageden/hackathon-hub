@@ -51,7 +51,8 @@ export const hardwareApi = {
 
   createDamageReport: (eventId: string, data: CreateDamageReportRequest) => api.post<HardwareDamageReport>(`/events/${eventId}/hardware/damage-reports`, data),
 
-  resolveDamageReport: (eventId: string, reportId: string) => api.put<HardwareDamageReport>(`/events/${eventId}/hardware/damage-reports/${reportId}/resolve`),
+  resolveDamageReport: (eventId: string, reportId: string, restore = false) =>
+    api.put<HardwareDamageReport>(`/events/${eventId}/hardware/damage-reports/${reportId}/resolve`, restore ? { restore: true } : undefined),
 
   // Analytics
   getAnalytics: (eventId: string) => api.get<HardwareAnalytics>(`/events/${eventId}/hardware/analytics`),

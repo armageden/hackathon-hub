@@ -4,7 +4,8 @@ import { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Tooltip } from '@/components/ui/Tooltip';
 import type { VenueLocation, VenueAssignment } from '@/types/api';
-import { format, addMinutes, startOfDay } from 'date-fns';
+import { addMinutes, startOfDay } from 'date-fns';
+import { formatTime } from '@/lib/formatters';
 
 interface ScheduleGridProps {
   locations: VenueLocation[];
@@ -116,7 +117,7 @@ export function ScheduleGrid({
             {timeSlots.map((slot, slotIndex) => (
               <tr key={slot.toISOString()}>
                 <td className="w-32 p-2 text-right font-mono text-xs text-gray-500 border-b border-gray-800 sticky left-0 z-10 bg-gray-950">
-                  {format(slot, 'h:mm a')}
+                  {formatTime(slot)}
                 </td>
                 {locations.map(location => {
                   const assignment = getAssignmentAt(location.id, slot);
@@ -151,7 +152,7 @@ export function ScheduleGrid({
                               {assignment.team?.name || assignment.project?.title || 'Assignment'}
                             </div>
                             <div className="text-[10px] text-white/70 mt-1">
-                              {format(new Date(assignment.starts_at!), 'h:mm a')} - {format(new Date(assignment.ends_at!), 'h:mm a')}
+                              {formatTime(assignment.starts_at!)} - {formatTime(assignment.ends_at!)}
                             </div>
                           </div>
                         </Tooltip>

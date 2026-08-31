@@ -195,20 +195,24 @@ export function HardwareTable({ eventId, onEdit, onViewHistory, onAddItem, canEd
               className="input-base pl-10"
             />
           </div>
-          <Select
-            value={filters.status}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFilters(prev => ({ ...prev, status: e.target.value, page: 1 }))}
-            options={[{ value: '', label: 'All Status' }, ...HARDWARE_STATUSES.map(s => ({ value: s.value, label: s.label }))]}
-            placeholder="Status"
-            className="w-[160px]"
-          />
-          <Select
-            value={filters.category}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFilters(prev => ({ ...prev, category: e.target.value, page: 1 }))}
-            options={[{ value: '', label: 'All Categories' }, ...HARDWARE_CATEGORIES.map(c => ({ value: c, label: c }))]}
-            placeholder="Category"
-            className="w-[160px]"
-          />
+          <div className="w-[160px]">
+            <Select
+              value={filters.status}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFilters(prev => ({ ...prev, status: e.target.value, page: 1 }))}
+              options={[{ value: '', label: 'All Status' }, ...HARDWARE_STATUSES.map(s => ({ value: s.value, label: s.label }))]}
+              placeholder="Status"
+              className="w-full"
+            />
+          </div>
+          <div className="w-[160px]">
+            <Select
+              value={filters.category}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFilters(prev => ({ ...prev, category: e.target.value, page: 1 }))}
+              options={[{ value: '', label: 'All Categories' }, ...HARDWARE_CATEGORIES.map(c => ({ value: c, label: c }))]}
+              placeholder="Category"
+              className="w-full"
+            />
+          </div>
         </div>
 
         {/* Table */}

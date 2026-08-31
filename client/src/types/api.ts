@@ -49,6 +49,7 @@ export interface User {
   email: string;
   full_name: string;
   global_role: 'admin' | 'user';
+  admin_expires_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -220,6 +221,8 @@ export interface VenueLocation {
   location_type: 'room' | 'booth' | 'table' | 'stage' | 'lab' | 'desk';
   capacity: number | null;
   description: string | null;
+  position_x?: number | null;
+  position_y?: number | null;
   created_at: string;
 }
 
@@ -245,6 +248,8 @@ export interface CreateVenueLocationRequest {
   location_type: 'room' | 'booth' | 'table' | 'stage' | 'lab' | 'desk';
   capacity?: number;
   description?: string;
+  position_x?: number | null;
+  position_y?: number | null;
 }
 
 export interface UpdateVenueLocationRequest extends Partial<CreateVenueLocationRequest> {}
@@ -306,6 +311,8 @@ export interface JudgingScore {
   id: string;
   project_submission_id: string;
   judge_user_id: string;
+  judge_name?: string;
+  judge_email?: string;
   score_total: number | null;
   score_innovation: number | null;
   score_technical: number | null;

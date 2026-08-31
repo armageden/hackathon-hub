@@ -13,6 +13,8 @@ interface LocationPayload {
   location_type?: string;
   capacity?: number | null;
   description?: string | null;
+  position_x?: number | null;
+  position_y?: number | null;
 }
 
 interface AssignmentPayload {
@@ -48,6 +50,15 @@ function validateLocationData(data: LocationPayload, partial: boolean) {
   if (data.capacity !== undefined && data.capacity !== null) {
     if (!Number.isInteger(data.capacity) || data.capacity <= 0) {
       throw new ValidationError("Capacity must be a positive integer");
+    }
+  }
+  for (const axis of ["position_x", "position_y"] as const) {
+    const value = data[axis];
+    if (value !== undefined && value !== null && typeof value !== "number") {
+      throw new ValidationError("Position must be a number");
+    }
+    if (typeof value === "number" && !Number.isFinite(value)) {
+      throw new ValidationError("Position must be a number");
     }
   }
 }
@@ -120,8 +131,20 @@ export const venueService = {
     if (data.location_type !== undefined) fields.location_type = data.location_type;
     if (data.capacity !== undefined) fields.capacity = data.capacity;
     if (data.description !== undefined) fields.description = data.description;
+    if (data.position_x !== undefined) fields.position_x = data.position_x;
+    if (data.position_y !== undefined) fields.position_y = data.position_y;
+
+    // An empty patch must not reach SQL — it would build an invalid `SET` clause.
+    if (Object.keys(fields).length === 0) return existing;
 
     return venueRepository.updateLocation(eventId, locationId, fields);
+  },
+
+  async deleteLocation(eventId: string, locationId: string) {
+    const existing = await venueRepository.findLocationById(eventId, locationId);
+    if (!existing) throw new NotFoundError("Venue location not found");
+    await venueRepository.deleteLocation(eventId, locationId);
+    return true;
   },
 
   async listAssignments(eventId: string, filters: VenueAssignmentFilters = {}) {
@@ -226,6 +249,9 @@ export const venueService = {
     if (data.starts_at !== undefined) fields.starts_at = data.starts_at;
     if (data.ends_at !== undefined) fields.ends_at = data.ends_at;
     if (data.status !== undefined) fields.status = data.status;
+
+    // An empty patch must not reach SQL — it would build an invalid `SET` clause.
+    if (Object.keys(fields).length === 0) return existing;
 
     return venueRepository.updateAssignment(eventId, assignmentId, fields);
   },

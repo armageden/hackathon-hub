@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { hardwareApi, hardwareQueryKeys } from '../api';
 import type { HardwareDamageReport } from '@/types/api';
 import { formatRelativeTime, formatDateTime } from '@/lib/formatters';
-import { AlertTriangle, CheckCircle, MoreVertical, RotateCcw, Download } from 'lucide-react';
+import { AlertTriangle, CheckCircle, MoreVertical, RotateCcw, Download, Wrench } from 'lucide-react';
 import { downloadCsv } from '@/lib/export-csv';
 
 // API may enrich damage report rows with these display fields
@@ -24,10 +24,11 @@ type EnrichedDamageReport = HardwareDamageReport & {
 interface DamageReportsTableProps {
   eventId: string;
   onResolve: (reportId: string) => void;
+  onResolveAndRestore?: (reportId: string) => void;
   onViewDetails?: (item: { id: string; name: string }) => void;
 }
 
-export function DamageReportsTable({ eventId, onResolve, onViewDetails }: DamageReportsTableProps) {
+export function DamageReportsTable({ eventId, onResolve, onResolveAndRestore, onViewDetails }: DamageReportsTableProps) {
   const [filters, setFilters] = useState({
     status: '',
     search: '',
@@ -142,6 +143,15 @@ export function DamageReportsTable({ eventId, onResolve, onViewDetails }: Damage
                     Resolve
                   </DropdownMenuItem>
                 )}
+                {canResolve && onResolveAndRestore && (
+                  <DropdownMenuItem
+                    onClick={() => onResolveAndRestore(report.id)}
+                    className="flex items-center gap-2 text-emerald-400"
+                  >
+                    <Wrench className="h-4 w-4" />
+                    Resolve & Restore Item
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => onViewDetails?.({ id: report.hardware_item_id, name: report.hardware_item_name || 'Unknown' })}
@@ -157,7 +167,7 @@ export function DamageReportsTable({ eventId, onResolve, onViewDetails }: Damage
         },
       }),
     ];
-  }, [onResolve, onViewDetails]);
+  }, [onResolve, onResolveAndRestore, onViewDetails]);
 
   if (isLoading) {
     return (
