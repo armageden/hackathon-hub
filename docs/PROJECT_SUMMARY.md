@@ -257,8 +257,8 @@ client/src/
 
 | Metric | Count |
 |--------|-------|
-| **Backend TypeScript Files** | 80 (excluding node_modules) |
-| **Frontend TypeScript/TSX Files** | 121 |
+| **Backend TypeScript Files** | 74 (excluding node_modules) |
+| **Frontend TypeScript/TSX Files** | 120 |
 | **Database Migrations** | 22 |
 | **UI Components** | 16 |
 | **Chart Components** | 5 |
@@ -321,4 +321,4 @@ client/src/
 
 ---
 
-*Last auto-generated: 2026-08-31T20:25:15.898Z. This file is partially auto-generated - the "Not Started" and "Priority Actions" sections are maintained manually.
+*Last auto-generated: 2026-08-31T20:27:35.773Z. This file is partially auto-generated - the "Not Started" and "Priority Actions" sections are maintained manually.
