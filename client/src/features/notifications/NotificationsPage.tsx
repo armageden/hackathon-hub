@@ -11,14 +11,6 @@ import { useEventRole } from "../../hooks/useEventRole";
 import { useScopedEventId } from "../../app/providers";
 import { formatDateTime } from "@/lib/formatters";
 
-const TYPE_ICONS: Record<string, string> = {
-  info: "text-blue-400",
-  success: "text-green-400",
-  warning: "text-yellow-400",
-  reminder: "text-orange-400",
-  team_request: "text-purple-400",
-};
-
 const TYPE_BG: Record<string, string> = {
   info: "bg-blue-500/10 border-blue-500/20",
   success: "bg-green-500/10 border-green-500/20",

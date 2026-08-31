@@ -3,7 +3,7 @@ import type { ItineraryItem } from "./itinerary.types";
 import { listItinerary, createItinerary, updateItinerary } from "./itinerary.api";
 import { useEventRole } from "../../hooks/useEventRole";
 import { useScopedEventId } from "../../app/providers";
-import { formatDateTime, formatStatus } from "@/lib/formatters";
+import { formatStatus } from "@/lib/formatters";
 
 const SESSION_TYPE_COLORS: Record<string, string> = {
   ceremony: "bg-purple-500/20 text-purple-400 border-purple-500/30",
@@ -18,21 +18,6 @@ const SESSION_TYPE_DOTS: Record<string, string> = {
   presentation: "bg-orange-500",
   general: "bg-gray-500",
 };
-
-const STATUS_COLORS: Record<string, string> = {
-  active: "bg-green-500/20 text-green-400 border-green-500/30",
-  cancelled: "bg-red-500/20 text-red-400 border-red-500/20",
-};
-
-function formatDateKey(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-}
-
-function formatDateShort(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-}
 
 function formatTime(iso: string) {
   const d = new Date(iso);

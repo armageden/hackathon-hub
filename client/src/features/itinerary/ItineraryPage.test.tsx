@@ -58,33 +58,35 @@ beforeEach(() => {
 describe("ItineraryPage", () => {
   it("renders the page heading", async () => {
     render(<ItineraryPage />);
-    expect(screen.getByRole("heading", { name: /itinerary/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /schedule/i })).toBeInTheDocument();
     await waitFor(() => expect(itineraryApi.listItinerary).toHaveBeenCalled());
   });
 
   it("shows empty state when no items exist", async () => {
     render(<ItineraryPage />);
-    expect(await screen.findByText(/no itinerary items yet/i)).toBeInTheDocument();
+    expect(await screen.findByText(/no sessions scheduled yet/i)).toBeInTheDocument();
   });
 
   it("renders itinerary items sorted by start time", async () => {
     const lateItem = { ...sampleItem, id: "item-2", title: "Closing", starts_at: "2026-08-24T18:00:00Z", ends_at: "2026-08-24T19:00:00Z" };
     itineraryApi.listItinerary.mockResolvedValue([lateItem, sampleItem]);
     render(<ItineraryPage />);
-    expect(await screen.findByText("Opening Ceremony")).toBeInTheDocument();
-    expect(screen.getByText("Closing")).toBeInTheDocument();
-    expect(screen.getAllByText("Ceremony")).toHaveLength(2);
+    const opening = await screen.findByText("Opening Ceremony");
+    const closing = screen.getByText("Closing");
+    expect(closing).toBeInTheDocument();
+    // Opening starts earlier than Closing, so it must appear first in the DOM.
+    expect(opening.compareDocumentPosition(closing) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("shows Add Item button for organizers only", () => {
     useEventRole.mockReturnValue(asOrganizer);
     render(<ItineraryPage />);
-    expect(screen.getByRole("button", { name: /add item/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /add session/i })).toBeInTheDocument();
   });
 
   it("hides Add Item button for participants", () => {
     render(<ItineraryPage />);
-    expect(screen.queryByRole("button", { name: /add item/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /add session/i })).not.toBeInTheDocument();
   });
 
   it("shows Cancel button on items for organizers", async () => {

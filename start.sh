@@ -809,7 +809,6 @@ main() {
     if [[ "$WATCH_MODE" == "true" ]]; then
         echo -e "  ${MAGENTA}Supervisor:${NC}   auto-restart on crash, auto-reload on config/dep changes"
     fi
-    echo -e "\n  ${YELLOW}Demo Credentials:${NC}"
     echo -e "    ${BOLD}Admin:${NC}  admin@hackathon.com / admin123"
     echo -e "    ${BOLD}User:${NC}   user@hackathon.com  / user123"
     echo -e "\n  ${YELLOW}Press Ctrl+C to stop all services${NC}\n"

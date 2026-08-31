@@ -6,14 +6,12 @@ import {
   useState,
   useEffect,
   useCallback,
-  useRef,
   type ReactNode,
 } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { Toaster } from '@/components/ui/Toast';
-import { DemoModeProvider, useDemoMode } from './demo-mode';
-import { DEMO_EVENT_ID, REAL_EVENT_ID, setCurrentEventId } from '@/lib/event-id';
+import { setCurrentEventId } from '@/lib/event-id';
 import { api } from '@/lib/api';
 import type { User } from '@/types/api';
 
@@ -123,16 +121,14 @@ export function useTheme(): ThemeContextType {
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <DemoModeProvider>
-        <ThemeProvider>
-          <AuthProviderInner>
-            <EventProvider>
-              {children}
-              <Toaster position="top-right" richColors />
-            </EventProvider>
-          </AuthProviderInner>
-        </ThemeProvider>
-      </DemoModeProvider>
+      <ThemeProvider>
+        <AuthProviderInner>
+          <EventProvider>
+            {children}
+            <Toaster position="top-right" richColors />
+          </EventProvider>
+        </AuthProviderInner>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
@@ -216,16 +212,11 @@ const EventContext = createContext<EventContextType | undefined>(undefined);
 
 export function EventProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth();
-  const { demoMode } = useDemoMode();
   const [eventId, setEventIdState] = useState<string | null>(() =>
     localStorage.getItem('activeEventId')
  );
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Only force-select on actual demo toggles; init to current value so the
-  // first run of the effect is a no-op and never overrides a manual pick.
-  const lastDemoMode = useRef(demoMode);
 
   const fetchEvents = useCallback(async (): Promise<Event[]> => {
     if (!token) {
@@ -250,29 +241,6 @@ export function EventProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     fetchEvents();
   }, [fetchEvents]);
-
-  // Demo toggle drives selection against a FRESH list — enableDemoData seeds
-  // the event server-side after this component cached its list, and checking
-  // the stale cache here silently skipped the switch.
-  useEffect(() => {
-    if (lastDemoMode.current === demoMode) return;
-    lastDemoMode.current = demoMode;
-
-    let cancelled = false;
-    (async () => {
-      const fresh = await fetchEvents();
-      if (cancelled) return;
-      const target = demoMode ? DEMO_EVENT_ID : REAL_EVENT_ID;
-      if (fresh.some(e => e.id === target)) {
-        setEventIdState(target);
-        localStorage.setItem('activeEventId', target);
-        setCurrentEventId(target);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [demoMode, fetchEvents]);
 
   const setEventId = useCallback((id: string) => {
     setEventIdState(id);

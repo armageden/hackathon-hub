@@ -18,6 +18,31 @@ const certificatesApi = vi.hoisted(() => ({
 
 vi.mock("./certificates.api", () => certificatesApi);
 
+// PDFDownloadLink is a web-only API and throws in jsdom; render a plain anchor
+// instead so test rows (and the Revoke action) render in the Node test env.
+// CertificatePDF also touches Font.register / StyleSheet.create at module load,
+// so stub every export the module graph uses.
+vi.mock("@react-pdf/renderer", async () => {
+  const React = await import("react");
+  const stub = () => null;
+  return {
+    Font: { register: () => {} },
+    StyleSheet: { create: (s: unknown) => s },
+    Document: stub,
+    Page: stub,
+    Text: stub,
+    View: stub,
+    PDFDownloadLink: ({ children }: { children: unknown }) =>
+      React.createElement(
+        "a",
+        { href: "#", "data-testid": "pdf-download-link" },
+        typeof children === "function"
+          ? (children as (p: { loading: boolean }) => React.ReactNode)({ loading: false })
+          : (children as React.ReactNode)
+      ),
+  };
+});
+
 import CertificatesPage from "./CertificatesPage";
 
 const asParticipant = {

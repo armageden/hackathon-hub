@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useState, useEffect, useCallback } from "react";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import CertificatePDF from "./CertificatePDF";
@@ -300,7 +301,8 @@ export default function CertificatesPage() {
                               fileName={`certificate-${cert.full_name.replace(/\s+/g, "_")}-${cert.verification_code || cert.id.slice(0, 8)}.pdf`}
                               className="inline-flex items-center rounded-md bg-emerald-600/10 px-3 py-1.5 text-xs font-medium text-emerald-400 transition-colors hover:bg-emerald-600/20"
                             >
-                              {({ loading }) => (loading ? "Generating..." : "Download PDF")}
+                              {(({ loading }: { loading: boolean }) =>
+                                loading ? "Generating..." : "Download PDF") as unknown as ReactNode}
                             </PDFDownloadLink>
                           )}
                         </td>

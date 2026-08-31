@@ -15,7 +15,6 @@ import venueRoutes from "./modules/venue/venue.routes.js";
 import projectsRoutes from "./modules/projects/projects.routes.js";
 import judgingRoutes from "./modules/judging/judging.routes.js";
 import notificationsRoutes from "./modules/notifications/notifications.routes.js";
-import demoRoutes from "./modules/demo/demo.routes.js";
 import adminRoutes from "./modules/admin/admin.routes.js";
 import { authenticate } from "./middleware/auth.middleware.js";
 import { pool } from "./db/pool.js";
@@ -41,7 +40,6 @@ app.use("/api/v1/events/:eventId/venue", venueRoutes);
 app.use("/api/v1/events/:eventId/projects", projectsRoutes);
 app.use("/api/v1/events/:eventId/judging", judgingRoutes);
 app.use("/api/v1/events/:eventId/notifications", notificationsRoutes);
-app.use("/api/v1/demo", demoRoutes);
 
 // Health check
 app.get("/api/v1/health", (_req, res) => {

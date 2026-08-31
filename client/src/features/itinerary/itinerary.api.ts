@@ -9,7 +9,7 @@ export async function listItinerary(eventId: string = getActiveEventId()): Promi
 
 export async function createItinerary(
   eventId: string = getActiveEventId(),
-  data: { title: string; description?: string; location?: string; starts_at: string; ends_at: string; session_type: string }
+  data: { title: string; description?: string; location?: string; starts_at: string; ends_at: string; session_type: string; room_area?: string; speaker_name?: string; materials_url?: string }
 ): Promise<ItineraryItem> {
   const res = await apiRequest<{ item: ItineraryItem }>(`/events/${eventId}/itinerary`, {
     method: "POST",
@@ -21,7 +21,7 @@ export async function createItinerary(
 export async function updateItinerary(
   eventId: string = getActiveEventId(),
   itemId: string,
-  data: Partial<Pick<ItineraryItem, "title" | "description" | "location" | "starts_at" | "ends_at" | "session_type" | "status">>
+  data: Partial<Pick<ItineraryItem, "title" | "description" | "location" | "starts_at" | "ends_at" | "session_type" | "status" | "room_area" | "speaker_name" | "materials_url">>
 ): Promise<ItineraryItem> {
   const res = await apiRequest<{ item: ItineraryItem }>(`/events/${eventId}/itinerary/${itemId}`, {
     method: "PUT",
