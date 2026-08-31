@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import CertificatePDF from "./CertificatePDF";
 import {
   listCertificates,
   checkEligibility,
@@ -268,6 +270,7 @@ export default function CertificatesPage() {
                       <th className="px-6 py-3 font-medium">Status</th>
                       <th className="px-6 py-3 font-medium">Issued Date</th>
                       <th className="px-6 py-3 font-medium">Verification Code</th>
+                      <th className="px-6 py-3 font-medium">PDF</th>
                       {isOrganizer && <th className="px-6 py-3 font-medium">Actions</th>}
                     </tr>
                   </thead>
@@ -289,6 +292,17 @@ export default function CertificatesPage() {
                         <td className="whitespace-nowrap px-6 py-3 text-gray-300">{formatDate(cert.issued_at)}</td>
                         <td className="whitespace-nowrap px-6 py-3 font-mono text-xs text-gray-400">
                           {cert.verification_code || "---"}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-3">
+                          {cert.status === "issued" && (
+                            <PDFDownloadLink
+                              document={<CertificatePDF cert={cert} />}
+                              fileName={`certificate-${cert.full_name.replace(/\s+/g, "_")}-${cert.verification_code || cert.id.slice(0, 8)}.pdf`}
+                              className="inline-flex items-center rounded-md bg-emerald-600/10 px-3 py-1.5 text-xs font-medium text-emerald-400 transition-colors hover:bg-emerald-600/20"
+                            >
+                              {({ loading }) => (loading ? "Generating..." : "Download PDF")}
+                            </PDFDownloadLink>
+                          )}
                         </td>
                         {isOrganizer && (
                           <td className="whitespace-nowrap px-6 py-3">

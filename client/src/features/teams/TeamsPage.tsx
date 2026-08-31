@@ -4,6 +4,7 @@ import {
   createTeam,
   joinTeam,
   leaveTeam,
+  removeMember,
   listParticipants,
   getMyProfile,
   createOrUpdateProfile,
@@ -58,6 +59,13 @@ export default function TeamsPage() {
   const [assignTarget, setAssignTarget] = useState<Team | null>(null);
   const [assignUserId, setAssignUserId] = useState("");
   const [assigning, setAssigning] = useState(false);
+
+  const [removeTarget, setRemoveTarget] = useState<{ team: Team; userId: string; name: string } | null>(null);
+  const [removing, setRemoving] = useState(false);
+
+  const [teamDetail, setTeamDetail] = useState<Team | null>(null);
+  const [participantDetail, setParticipantDetail] = useState<ParticipantProfile | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   function showMsg(type: "success" | "error", text: string) {
     setMessage({ type, text });
@@ -213,6 +221,21 @@ export default function TeamsPage() {
     }
   }
 
+  async function handleRemoveMember() {
+    if (!removeTarget) return;
+    setRemoving(true);
+    try {
+      await removeMember(EVENT_ID, removeTarget.team.id, removeTarget.userId);
+      showMsg("success", "Member removed from team!");
+      setRemoveTarget(null);
+      fetchTeams();
+    } catch (err: any) {
+      showMsg("error", err?.message ?? "Failed to remove member");
+    } finally {
+      setRemoving(false);
+    }
+  }
+
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
     setSavingProfile(true);
@@ -238,6 +261,12 @@ export default function TeamsPage() {
     setSelectedTagIds((prev) =>
       prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
     );
+  }
+
+  function copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text);
+    setCopiedId(text);
+    setTimeout(() => setCopiedId(null), 1500);
   }
 
   function myTeamId(): string | null {
@@ -345,10 +374,34 @@ export default function TeamsPage() {
                       {creatingTeam ? "Creating..." : "Create"}
                     </button>
                   </form>
-                </div>
+                  </div>
 
                 {teamsLoading ? (
-                  <p className="text-gray-400 text-sm">Loading teams...</p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="bg-gray-900 rounded-xl border border-gray-800 p-5 animate-pulse">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <div className="h-5 bg-gray-800 rounded w-1/3 mb-2"></div>
+                            <div className="h-3 bg-gray-800 rounded w-2/3"></div>
+                          </div>
+                          <div className="h-5 bg-gray-800 rounded-full w-16"></div>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs mb-3">
+                          <div className="h-3 bg-gray-800 rounded w-20"></div>
+                          <div className="h-3 bg-gray-800 rounded w-16"></div>
+                        </div>
+                        <div className="flex gap-1.5 mb-3">
+                          <div className="h-6 bg-gray-800 rounded-full w-16"></div>
+                          <div className="h-6 bg-gray-800 rounded-full w-20"></div>
+                        </div>
+                        <div className="flex gap-2">
+                          <div className="h-7 bg-gray-800 rounded-lg w-20"></div>
+                          <div className="h-7 bg-gray-800 rounded-lg w-20"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : teams.length === 0 ? (
                   <p className="text-gray-500 text-sm">No teams yet. Be the first to create one!</p>
                 ) : (
@@ -358,7 +411,11 @@ export default function TeamsPage() {
                       const isMember = currentMyTeamId === team.id;
                       const isOnAnyTeam = currentMyTeamId !== null;
                       return (
-                        <div key={team.id} className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+                        <div
+                          key={team.id}
+                          className="bg-gray-900 rounded-xl border border-gray-800 p-5 cursor-pointer hover:border-gray-700 transition-colors"
+                          onClick={() => setTeamDetail(team)}
+                        >
                           <div className="flex items-start justify-between mb-2">
                             <div>
                               <h3 className="font-semibold text-white">{team.name}</h3>
@@ -386,19 +443,28 @@ export default function TeamsPage() {
                           </div>
 
                           {team.members.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 mb-3">
+                            <div className="flex flex-wrap gap-1.5 mb-3" onClick={(e) => e.stopPropagation()}>
                               {team.members.map((m) => (
                                 <span
                                   key={m.id}
-                                  className="text-xs bg-gray-800 text-gray-300 rounded-full px-2 py-0.5"
+                                  className="text-xs bg-gray-800 text-gray-300 rounded-full px-2 py-0.5 flex items-center gap-1"
                                 >
                                   {m.full_name}
+                                  {isOrganizer && (
+                                    <button
+                                      onClick={() => setRemoveTarget({ team, userId: m.user_id, name: m.full_name })}
+                                      className="text-red-400 hover:text-red-300 ml-0.5 font-bold"
+                                      title={`Remove ${m.full_name}`}
+                                    >
+                                      x
+                                    </button>
+                                  )}
                                 </span>
                               ))}
                             </div>
                           )}
 
-                          <div className="flex gap-2 flex-wrap">
+                          <div className="flex gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
                             {!isOrganizer && (
                               isMember ? (
                                 <button
@@ -611,11 +677,15 @@ export default function TeamsPage() {
                 ) : (
                   <div className="grid gap-4 sm:grid-cols-2">
                     {allParticipants.map((p) => (
-                      <div key={p.id} className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+                      <div
+                        key={p.id}
+                        className="bg-gray-900 rounded-xl border border-gray-800 p-5 cursor-pointer hover:border-gray-700 transition-colors"
+                        onClick={() => setParticipantDetail(p)}
+                      >
                         <div className="flex items-start justify-between mb-2">
                           <div>
                             <h3 className="font-semibold text-white">
-                              {p.full_name || p.user_id.slice(0, 8) + "..."}
+                              {p.full_name || "Unknown"}
                             </h3>
                             {p.experience_level && (
                               <span className="text-xs bg-gray-800 text-gray-400 rounded-full px-2 py-0.5 mt-1 inline-block">
@@ -627,36 +697,36 @@ export default function TeamsPage() {
                             <span className="text-xs text-indigo-400">{p.preferred_role}</span>
                           )}
                         </div>
-                        {p.bio && <p className="text-sm text-gray-400 mb-2">{p.bio}</p>}
+                        {p.bio && <p className="text-sm text-gray-400 mb-2 line-clamp-2">{p.bio}</p>}
                         {p.tech_stack_summary && (
-                          <p className="text-xs text-gray-500 mb-2">{p.tech_stack_summary}</p>
+                          <p className="text-xs text-gray-500 mb-2 line-clamp-1">{p.tech_stack_summary}</p>
                         )}
-                        {p.tech_stack.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {p.tech_stack.map((tag) => (
-                              <span
-                                key={tag.id}
-                                className="text-xs bg-gray-800 text-gray-300 rounded-full px-2 py-0.5"
-                              >
-                                {tag.name}
+                        <div className="mt-3 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyToClipboard(p.user_id);
+                              }}
+                              className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 rounded-lg px-2 py-1 font-mono transition-colors flex items-center gap-1"
+                              title="Copy full user ID"
+                            >
+                              <span>{p.user_id.slice(0, 8)}</span>
+                              {copiedId === p.user_id ? (
+                                <span className="text-green-400">Copied!</span>
+                              ) : (
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                              )}
+                            </button>
+                            {p.looking_for_team && (
+                              <span className="text-xs bg-emerald-900/50 text-emerald-300 rounded-full px-2 py-0.5">
+                                Looking for team
                               </span>
-                            ))}
+                            )}
                           </div>
-                        )}
-                        <div className="mt-2 flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => navigator.clipboard.writeText(p.user_id)}
-                            className="text-xs text-gray-500 hover:text-gray-300 font-mono transition-colors"
-                            title="Click to copy full ID"
-                          >
-                            ID: {p.user_id.slice(0, 8)}… 📋
-                          </button>
-                          {p.looking_for_team && (
-                            <span className="text-xs bg-emerald-900/50 text-emerald-300 rounded-full px-2 py-0.5">
-                              Looking for team
-                            </span>
-                          )}
                         </div>
                       </div>
                     ))}
@@ -738,6 +808,240 @@ export default function TeamsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========== REMOVE MEMBER MODAL ========== */}
+      {removeTarget && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-1">Remove Member</h3>
+            <p className="text-sm text-gray-400 mb-4">
+              Remove <span className="text-white font-medium">{removeTarget.name}</span> from <span className="text-white font-medium">{removeTarget.team.name}</span>?
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setRemoveTarget(null)}
+                className="rounded-lg bg-gray-800 px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 border border-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRemoveMember}
+                disabled={removing}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50 transition-colors"
+              >
+                {removing ? "Removing..." : "Remove"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========== TEAM DETAIL MODAL ========== */}
+      {teamDetail && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setTeamDetail(null)}>
+          <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-white">{teamDetail.name}</h2>
+                <div className="flex items-center gap-3 mt-2">
+                  <span className={`text-xs px-2.5 py-0.5 rounded-full ${
+                    teamDetail.status === "forming"
+                      ? "bg-emerald-900/50 text-emerald-300"
+                      : teamDetail.status === "full"
+                      ? "bg-yellow-900/50 text-yellow-300"
+                      : "bg-gray-800 text-gray-400"
+                  }`}>
+                    {formatStatus(teamDetail.status)}
+                  </span>
+                  <span className="text-sm text-gray-400">
+                    {teamDetail.member_count}/{teamDetail.max_size} members
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    by {teamDetail.creator_name}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setTeamDetail(null)}
+                className="text-gray-400 hover:text-white p-1"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {teamDetail.description && (
+              <div className="bg-gray-800/50 rounded-lg p-4 mb-6 border border-gray-700">
+                <p className="text-sm text-gray-300">{teamDetail.description}</p>
+              </div>
+            )}
+
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-gray-400 mb-3">
+                Team Members ({teamDetail.member_count}/{teamDetail.max_size})
+              </h3>
+              <div className="space-y-3">
+                {teamDetail.members.map((m) => (
+                  <div key={m.id} className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-white">{m.full_name}</span>
+                          {m.role === "owner" && (
+                            <span className="text-xs bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full">
+                              Owner
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-0.5">{m.email}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {m.experience_level && (
+                          <span className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full">
+                            {m.experience_level}
+                          </span>
+                        )}
+                        {isOrganizer && (
+                          <button
+                            onClick={() => {
+                              setRemoveTarget({ team: teamDetail, userId: m.user_id, name: m.full_name });
+                              setTeamDetail(null);
+                            }}
+                            className="text-xs bg-red-600/10 hover:bg-red-600/20 text-red-400 border border-red-500/20 rounded-lg px-3 py-1.5 font-medium transition-colors"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {m.preferred_role && (
+                      <p className="text-xs text-indigo-400 mb-1">
+                        Role: {m.preferred_role}
+                      </p>
+                    )}
+                    {m.bio && (
+                      <p className="text-sm text-gray-400 mb-2">{m.bio}</p>
+                    )}
+                    {m.tech_stack_summary && (
+                      <p className="text-xs text-gray-500">{m.tech_stack_summary}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {teamDetail.member_count < teamDetail.max_size && (
+              <div className="text-sm text-gray-500 bg-gray-800/30 rounded-lg p-3 text-center border border-gray-800">
+                {teamDetail.max_size - teamDetail.member_count} spot{teamDetail.max_size - teamDetail.member_count !== 1 ? "s" : ""} available
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========== PARTICIPANT DETAIL MODAL ========== */}
+      {participantDetail && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setParticipantDetail(null)}>
+          <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-white">{participantDetail.full_name || "Unknown"}</h2>
+                <p className="text-sm text-gray-500 mt-1">{participantDetail.email}</p>
+              </div>
+              <button
+                onClick={() => setParticipantDetail(null)}
+                className="text-gray-400 hover:text-white p-1"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                {participantDetail.experience_level && (
+                  <span className="text-xs bg-gray-800 text-gray-300 rounded-full px-3 py-1">
+                    {participantDetail.experience_level}
+                  </span>
+                )}
+                {participantDetail.preferred_role && (
+                  <span className="text-xs bg-indigo-500/20 text-indigo-300 rounded-full px-3 py-1">
+                    {participantDetail.preferred_role}
+                  </span>
+                )}
+                {participantDetail.looking_for_team && (
+                  <span className="text-xs bg-emerald-500/20 text-emerald-300 rounded-full px-3 py-1">
+                    Looking for team
+                  </span>
+                )}
+              </div>
+
+              {participantDetail.bio && (
+                <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                  <h3 className="text-xs font-semibold text-gray-400 mb-2">Bio</h3>
+                  <p className="text-sm text-gray-300">{participantDetail.bio}</p>
+                </div>
+              )}
+
+              {participantDetail.tech_stack_summary && (
+                <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                  <h3 className="text-xs font-semibold text-gray-400 mb-2">Tech Stack</h3>
+                  <p className="text-sm text-gray-300">{participantDetail.tech_stack_summary}</p>
+                </div>
+              )}
+
+              {participantDetail.tech_stack.length > 0 && (
+                <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                  <h3 className="text-xs font-semibold text-gray-400 mb-2">Skills</h3>
+                  <div className="flex flex-wrap gap-1.5">
+                    {participantDetail.tech_stack.map((tag) => (
+                      <span
+                        key={tag.id}
+                        className="text-xs bg-gray-800 text-gray-300 rounded-full px-2.5 py-1"
+                      >
+                        {tag.name}
+                        {tag.category ? ` (${tag.category})` : ""}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                <h3 className="text-xs font-semibold text-gray-400 mb-2">User ID</h3>
+                <div className="flex items-center gap-2">
+                  <code className="text-sm text-gray-300 font-mono bg-gray-900 px-2 py-1 rounded flex-1 truncate">
+                    {participantDetail.user_id}
+                  </code>
+                  <button
+                    onClick={() => copyToClipboard(participantDetail!.user_id)}
+                    className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg px-3 py-1.5 font-medium transition-colors flex items-center gap-1"
+                  >
+                    {copiedId === participantDetail.user_id ? (
+                      <>
+                        <svg className="w-3.5 h-3.5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        Copy ID
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

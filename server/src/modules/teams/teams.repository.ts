@@ -11,7 +11,9 @@ export const teamsRepository = {
                 json_agg(
                   json_build_object(
                     'id', tm.id, 'user_id', tm.user_id, 'role', tm.role,
-                    'joined_at', tm.joined_at, 'full_name', mu.full_name, 'email', mu.email
+                    'joined_at', tm.joined_at, 'full_name', mu.full_name, 'email', mu.email,
+                    'bio', pp.bio, 'experience_level', pp.experience_level,
+                    'preferred_role', pp.preferred_role, 'tech_stack_summary', pp.tech_stack_summary
                   )
                 ) FILTER (WHERE tm.id IS NOT NULL), '[]'
               ) AS members
@@ -19,6 +21,7 @@ export const teamsRepository = {
        JOIN users u ON u.id = t.created_by
        LEFT JOIN team_members tm ON tm.team_id = t.id
        LEFT JOIN users mu ON mu.id = tm.user_id
+       LEFT JOIN participant_profiles pp ON pp.user_id = tm.user_id AND pp.event_id = t.event_id
        WHERE t.event_id = $1
        GROUP BY t.id, u.full_name
        ORDER BY t.created_at DESC`,
@@ -35,7 +38,9 @@ export const teamsRepository = {
                 json_agg(
                   json_build_object(
                     'id', tm.id, 'user_id', tm.user_id, 'role', tm.role,
-                    'joined_at', tm.joined_at, 'full_name', mu.full_name, 'email', mu.email
+                    'joined_at', tm.joined_at, 'full_name', mu.full_name, 'email', mu.email,
+                    'bio', pp.bio, 'experience_level', pp.experience_level,
+                    'preferred_role', pp.preferred_role, 'tech_stack_summary', pp.tech_stack_summary
                   )
                 ) FILTER (WHERE tm.id IS NOT NULL), '[]'
               ) AS members
@@ -43,6 +48,7 @@ export const teamsRepository = {
        JOIN users u ON u.id = t.created_by
        LEFT JOIN team_members tm ON tm.team_id = t.id
        LEFT JOIN users mu ON mu.id = tm.user_id
+       LEFT JOIN participant_profiles pp ON pp.user_id = tm.user_id AND pp.event_id = t.event_id
        WHERE t.event_id = $1 AND t.id = $2
        GROUP BY t.id, u.full_name`,
       [eventId, teamId]
@@ -50,7 +56,7 @@ export const teamsRepository = {
     return result.rows[0] || null;
   },
 
-  async create(eventId: string, name: string, description: string | null, maxSize: number, createdBy: string) {
+  async create(eventId: string, name: string, description: string | null, maxSize: number, createdBy: string, skipMember: boolean = false) {
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
@@ -63,11 +69,14 @@ export const teamsRepository = {
       );
       const team = teamResult.rows[0];
 
-      await client.query(
-        `INSERT INTO team_members (team_id, user_id, role)
-         VALUES ($1, $2, 'owner')`,
-        [team.id, createdBy]
-      );
+      // Organizer-created teams start empty (for assignment later)
+      if (!skipMember) {
+        await client.query(
+          `INSERT INTO team_members (team_id, user_id, role)
+           VALUES ($1, $2, 'owner')`,
+          [team.id, createdBy]
+        );
+      }
 
       await client.query("COMMIT");
       return team;
@@ -310,6 +319,16 @@ export const teamsRepository = {
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
+
+      // Prevent organizers from being added to any team
+      const userCheck = await client.query(
+        "SELECT global_role FROM users WHERE id = $1",
+        [userId]
+      );
+      if (userCheck.rows[0]?.global_role === "admin") {
+        await client.query("ROLLBACK");
+        throw new ConflictError("Admin users cannot be added to teams");
+      }
 
       const teamResult = await client.query(
         "SELECT * FROM teams WHERE id = $1 AND event_id = $2 FOR UPDATE",

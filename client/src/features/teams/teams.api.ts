@@ -110,3 +110,9 @@ export async function forceJoinTeam(eventId: string, teamId: string, userId: str
     body: JSON.stringify({ user_id: userId }),
   });
 }
+
+export async function removeMember(eventId: string, teamId: string, userId: string): Promise<{ message: string }> {
+  return apiRequest("/events/" + eventId + "/teams/" + teamId + "/members/" + userId, {
+    method: "DELETE",
+  });
+}

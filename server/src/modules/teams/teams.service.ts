@@ -18,16 +18,29 @@ export const teamsService = {
     if (!name || name.trim().length === 0) throw new ValidationError("Team name is required");
     if (maxSize !== undefined && maxSize < 1) throw new ValidationError("Max size must be at least 1");
 
-    const hasTeam = await teamsRepository.hasTeamInEvent(eventId, userId);
-    if (hasTeam) throw new ConflictError("You are already in a team for this event");
+    // Organizers can create teams but don't become members
+    const membership = await eventMembersRepository.getMyRole(eventId, userId);
+    const isOrganizer = membership?.role === "organizer";
+
+    if (!isOrganizer) {
+      const hasTeam = await teamsRepository.hasTeamInEvent(eventId, userId);
+      if (hasTeam) throw new ConflictError("You are already in a team for this event");
+    }
 
     const team = await teamsRepository.create(
       eventId,
       name.trim(),
       description || null,
       maxSize || 5,
-      userId
+      userId,
+      isOrganizer  // skipMember = true for organizers
     );
+
+    // If organizer, don't add them as a member - team starts empty for assignment
+    if (isOrganizer) {
+      return teamsRepository.findById(eventId, team.id);
+    }
+
     return teamsRepository.findById(eventId, team.id);
   },
 
@@ -85,6 +98,12 @@ export const teamsService = {
     const team = await teamsRepository.findById(eventId, teamId);
     if (!team) throw new NotFoundError("Team not found");
 
+    // Organizers should not be part of teams
+    const membership = await eventMembersRepository.getMyRole(eventId, userId);
+    if (membership?.role === "organizer") {
+      throw new AuthorizationError("Organizers cannot join teams");
+    }
+
     // Capacity and one-team-per-event are enforced under a row lock so
     // concurrent joins can't overfill or double-team.
     return teamsRepository.addMemberAtomically(eventId, teamId, userId, {
@@ -117,9 +136,17 @@ export const teamsService = {
     if (!team) throw new NotFoundError("Team not found");
 
     const isOwner = await teamsRepository.isOwner(teamId, requesterId);
-    if (!isOwner) throw new AuthorizationError("Only the team owner can remove members");
+    const membership = await eventMembersRepository.getMyRole(eventId, requesterId);
+    const isOrganizer = membership?.role === "organizer";
 
-    if (targetUserId === requesterId) throw new ValidationError("Cannot remove yourself. Use leave team instead.");
+    if (!isOwner && !isOrganizer) throw new AuthorizationError("Only the team owner or an organizer can remove members");
+
+    // Organizers can remove anyone including owners
+    // Team owners can only remove non-owners
+    if (!isOrganizer && isOwner) {
+      const targetIsOwner = await teamsRepository.isOwner(teamId, targetUserId);
+      if (targetIsOwner) throw new ValidationError("Owners cannot remove themselves. Delete the team instead.");
+    }
 
     const removed = await teamsRepository.removeMember(teamId, targetUserId);
     if (!removed) throw new NotFoundError("User is not a member of this team");
@@ -127,6 +154,12 @@ export const teamsService = {
     const memberCount = await teamsRepository.getMemberCount(teamId);
     if (memberCount < team.max_size && team.status === "full") {
       await teamsRepository.update(eventId, teamId, { status: "forming" });
+    }
+
+    // If team is now empty, delete it
+    if (memberCount === 0) {
+      await teamsRepository.delete(eventId, teamId);
+      return { message: "Member removed. Team was empty and has been deleted." };
     }
 
     return { message: "Member removed" };

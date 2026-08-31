@@ -24,11 +24,14 @@ export const itineraryRepository = {
     location: string | null,
     startsAt: string,
     endsAt: string,
-    sessionType: string
+    sessionType: string,
+    roomArea: string | null = null,
+    speakerName: string | null = null,
+    materialsUrl: string | null = null
   ) {
     const result = await pool.query(
-      "INSERT INTO itinerary_items (event_id, title, description, location, starts_at, ends_at, session_type) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
-      [eventId, title, description, location, startsAt, endsAt, sessionType]
+      "INSERT INTO itinerary_items (event_id, title, description, location, starts_at, ends_at, session_type, room_area, speaker_name, materials_url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *",
+      [eventId, title, description, location, startsAt, endsAt, sessionType, roomArea, speakerName, materialsUrl]
     );
     return result.rows[0];
   },

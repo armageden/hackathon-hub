@@ -83,6 +83,40 @@ export const checkinRepository = {
        FROM check_ins WHERE event_id = $1`,
       [eventId]
     );
-    return result.rows[0];
+
+    const sessionResult = await pool.query(
+      `SELECT
+         ci.itinerary_item_id AS session_id,
+         ii.title AS session_title,
+         COUNT(*)::int AS checkin_count,
+         COUNT(DISTINCT ci.user_id)::int AS unique_users
+       FROM check_ins ci
+       JOIN itinerary_items ii ON ii.id = ci.itinerary_item_id
+       WHERE ci.event_id = $1 AND ci.itinerary_item_id IS NOT NULL
+       GROUP BY ci.itinerary_item_id, ii.title
+       ORDER BY checkin_count DESC`,
+      [eventId]
+    );
+
+    return {
+      ...result.rows[0],
+      session_stats: sessionResult.rows,
+    };
+  },
+
+  async findCheckinById(eventId: string, checkinId: string) {
+    const result = await pool.query(
+      "SELECT * FROM check_ins WHERE id = $1 AND event_id = $2",
+      [checkinId, eventId]
+    );
+    return result.rows[0] || null;
+  },
+
+  async checkout(checkinId: string) {
+    const result = await pool.query(
+      "UPDATE check_ins SET checked_out_at = NOW() WHERE id = $1 AND checked_out_at IS NULL RETURNING *",
+      [checkinId]
+    );
+    return result.rows[0] || null;
   },
 };

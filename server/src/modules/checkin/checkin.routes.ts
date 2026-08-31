@@ -40,4 +40,18 @@ router.get(
   checkinController.getStats
 );
 
+router.post(
+  "/bulk",
+  authenticate,
+  requireEventRole("organizer"),
+  checkinController.bulkCheckin
+);
+
+router.post(
+  "/:checkinId/checkout",
+  authenticate,
+  requireEventRole("organizer"),
+  checkinController.checkout
+);
+
 export default router;

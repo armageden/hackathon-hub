@@ -40,18 +40,31 @@ ON CONFLICT (event_id, user_id) DO NOTHING;
 -- ---------------------------------------------------------------------------
 INSERT INTO users (id, email, full_name, password_hash, global_role)
 VALUES
-  ('d0000000-0000-0000-0000-000000000041', 'alice@demo.com', 'Alice Chen', '$2b$10$dummyhashdummyhashdummyhashdum', 'user'),
-  ('d0000000-0000-0000-0000-000000000042', 'bob@demo.com', 'Bob Kumar', '$2b$10$dummyhashdummyhashdummyhashdum', 'user'),
-  ('d0000000-0000-0000-0000-000000000043', 'carol@demo.com', 'Carol Reyes', '$2b$10$dummyhashdummyhashdummyhashdum', 'user'),
-  ('d0000000-0000-0000-0000-000000000044', 'dave@demo.com', 'Dave Okafor', '$2b$10$dummyhashdummyhashdummyhashdum', 'user')
+  ('d0000000-0000-0000-0000-000000000041', 'alice@demo.com', 'Alice Chen', '$2a$12$nWXtY4xYzMieXyhRHzyLz.X6M8wFktL.zSoVlXlUNtI515hP.E9i6', 'user'),
+  ('d0000000-0000-0000-0000-000000000042', 'bob@demo.com', 'Bob Kumar', '$2a$12$nWXtY4xYzMieXyhRHzyLz.X6M8wFktL.zSoVlXlUNtI515hP.E9i6', 'user'),
+  ('d0000000-0000-0000-0000-000000000043', 'carol@demo.com', 'Carol Reyes', '$2a$12$nWXtY4xYzMieXyhRHzyLz.X6M8wFktL.zSoVlXlUNtI515hP.E9i6', 'user'),
+  ('d0000000-0000-0000-0000-000000000044', 'dave@demo.com', 'Dave Okafor', '$2a$12$nWXtY4xYzMieXyhRHzyLz.X6M8wFktL.zSoVlXlUNtI515hP.E9i6', 'user'),
+  ('d0000000-0000-0000-0000-000000000045', 'eve@demo.com', 'Eve Santos', '$2a$12$nWXtY4xYzMieXyhRHzyLz.X6M8wFktL.zSoVlXlUNtI515hP.E9i6', 'user'),
+  ('d0000000-0000-0000-0000-000000000046', 'frank@demo.com', 'Frank Liu', '$2a$12$nWXtY4xYzMieXyhRHzyLz.X6M8wFktL.zSoVlXlUNtI515hP.E9i6', 'user'),
+  ('d0000000-0000-0000-0000-000000000047', 'grace@demo.com', 'Grace Kim', '$2a$12$nWXtY4xYzMieXyhRHzyLz.X6M8wFktL.zSoVlXlUNtI515hP.E9i6', 'user'),
+  ('d0000000-0000-0000-0000-000000000048', 'henry@demo.com', 'Henry Patel', '$2a$12$nWXtY4xYzMieXyhRHzyLz.X6M8wFktL.zSoVlXlUNtI515hP.E9i6', 'user'),
+  ('d0000000-0000-0000-0000-000000000049', 'iris@demo.com', 'Iris Nakamura', '$2a$12$nWXtY4xYzMieXyhRHzyLz.X6M8wFktL.zSoVlXlUNtI515hP.E9i6', 'user'),
+  ('d0000000-0000-0000-0000-00000000004a', 'jack@demo.com', 'Jack Wilson', '$2a$12$nWXtY4xYzMieXyhRHzyLz.X6M8wFktL.zSoVlXlUNtI515hP.E9i6', 'user')
 ON CONFLICT (email) DO NOTHING;
 
 INSERT INTO event_members (event_id, user_id, role, status)
 VALUES
+  ('e0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000002', 'participant', 'active'),
   ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000041', 'participant', 'active'),
   ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000042', 'participant', 'active'),
   ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000043', 'participant', 'active'),
-  ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000044', 'participant', 'active')
+  ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000044', 'participant', 'active'),
+  ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000045', 'participant', 'active'),
+  ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000046', 'participant', 'active'),
+  ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000047', 'participant', 'active'),
+  ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000048', 'participant', 'active'),
+  ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000049', 'participant', 'active'),
+  ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-00000000004a', 'participant', 'active')
 ON CONFLICT (event_id, user_id) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
@@ -59,33 +72,48 @@ ON CONFLICT (event_id, user_id) DO NOTHING;
 -- ---------------------------------------------------------------------------
 INSERT INTO participant_profiles (event_id, user_id, bio, experience_level, preferred_role, looking_for_team, tech_stack_summary)
 VALUES
-  ('e0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000002', 'Full-stack dev who loves hackathons.', 'intermediate', 'Backend Developer', true, 'Node.js, PostgreSQL, React'),
-  ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000041', 'CS student passionate about AI/ML.', 'beginner', 'ML Engineer', true, 'Python, TensorFlow, PyTorch'),
-  ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000042', 'Hardware hacker and IoT enthusiast.', 'advanced', 'Embedded Systems', true, 'C++, Arduino, Raspberry Pi'),
+  ('e0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000002', 'Full-stack dev who loves hackathons.', 'intermediate', 'Backend Developer', false, 'Node.js, PostgreSQL, React'),
+  ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000041', 'CS student passionate about AI/ML.', 'beginner', 'ML Engineer', false, 'Python, TensorFlow, PyTorch'),
+  ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000042', 'Hardware hacker and IoT enthusiast.', 'advanced', 'Embedded Systems', false, 'C++, Arduino, Raspberry Pi'),
   ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000043', 'UX designer who can also code.', 'intermediate', 'Frontend Developer', false, 'Figma, React, Tailwind CSS'),
-  ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000044', 'DevOps engineer looking for a team.', 'expert', 'Cloud Architect', true, 'AWS, Docker, Kubernetes, Terraform')
+  ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000044', 'DevOps engineer looking for a team.', 'expert', 'Cloud Architect', true, 'AWS, Docker, Kubernetes, Terraform'),
+  ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000045', 'Mobile developer with a love for clean UIs.', 'advanced', 'Frontend Developer', false, 'React Native, Flutter, Swift'),
+  ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000046', 'Data scientist who enjoys ML challenges.', 'intermediate', 'Data Scientist', true, 'Python, TensorFlow, Pandas'),
+  ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000047', 'DevOps engineer and cloud enthusiast.', 'expert', 'DevOps Engineer', true, 'AWS, Docker, Kubernetes'),
+  ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000048', 'Backend developer, APIs are my thing.', 'intermediate', 'Backend Developer', false, 'Node.js, PostgreSQL, Express'),
+  ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000049', 'First hackathon, excited to learn!', 'beginner', 'Full Stack Developer', true, 'HTML, CSS, JavaScript'),
+  ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-00000000004a', 'Security researcher and CTF player.', 'advanced', 'Security Engineer', false, 'Kali Linux, Wireshark, Burp Suite')
 ON CONFLICT (event_id, user_id) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
 -- Teams + members (004: teams PK(id); UNIQUE(team_id, user_id))
--- Only two real users exist, so they own/join several teams each.
+-- Admin NEVER joins teams - only participants do.
 -- ---------------------------------------------------------------------------
 INSERT INTO teams (id, event_id, name, description, max_size, status, created_by)
 VALUES
-  ('d0000000-0000-0000-0000-000000000011', 'e0000000-0000-0000-0000-000000000002', 'Neural Ninjas', 'Computer-vision murals and generative art.', 4, 'forming', 'a0000000-0000-0000-0000-000000000002'),
-  ('d0000000-0000-0000-0000-000000000012', 'e0000000-0000-0000-0000-000000000002', 'Byte Bandits', 'Hardware hacks and sensor networks.', 2, 'full', 'a0000000-0000-0000-0000-000000000001'),
-  ('d0000000-0000-0000-0000-000000000013', 'e0000000-0000-0000-0000-000000000002', 'Quantum Quokkas', 'Quantum computing demos for curious humans.', 5, 'forming', 'a0000000-0000-0000-0000-000000000001'),
-  ('d0000000-0000-0000-0000-000000000014', 'e0000000-0000-0000-0000-000000000002', 'Prompt Pirates', 'LLM tooling and prompt engineering shenanigans.', 4, 'forming', 'a0000000-0000-0000-0000-000000000002')
+  ('d0000000-0000-0000-0000-000000000011', 'e0000000-0000-0000-0000-000000000002', 'Neural Ninjas', 'Computer-vision murals and generative art.', 4, 'full', 'd0000000-0000-0000-0000-000000000041'),
+  ('d0000000-0000-0000-0000-000000000012', 'e0000000-0000-0000-0000-000000000002', 'Byte Bandits', 'Hardware hacks and sensor networks.', 4, 'full', 'd0000000-0000-0000-0000-000000000042'),
+  ('d0000000-0000-0000-0000-000000000013', 'e0000000-0000-0000-0000-000000000002', 'Quantum Quokkas', 'Quantum computing demos for curious humans.', 5, 'forming', 'd0000000-0000-0000-0000-000000000043'),
+  ('d0000000-0000-0000-0000-000000000014', 'e0000000-0000-0000-0000-000000000002', 'Prompt Pirates', 'LLM tooling and prompt engineering shenanigans.', 4, 'forming', 'd0000000-0000-0000-0000-000000000048')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO team_members (id, team_id, user_id, role, assigned_by)
 VALUES
-  ('d0000000-0000-0000-0000-000000000021', 'd0000000-0000-0000-0000-000000000011', 'a0000000-0000-0000-0000-000000000002', 'owner', NULL),
-  ('d0000000-0000-0000-0000-000000000022', 'd0000000-0000-0000-0000-000000000011', 'a0000000-0000-0000-0000-000000000001', 'member', 'a0000000-0000-0000-0000-000000000002'),
-  ('d0000000-0000-0000-0000-000000000023', 'd0000000-0000-0000-0000-000000000012', 'a0000000-0000-0000-0000-000000000001', 'owner', NULL),
-  ('d0000000-0000-0000-0000-000000000024', 'd0000000-0000-0000-0000-000000000012', 'a0000000-0000-0000-0000-000000000002', 'member', 'a0000000-0000-0000-0000-000000000001'),
-  ('d0000000-0000-0000-0000-000000000025', 'd0000000-0000-0000-0000-000000000013', 'a0000000-0000-0000-0000-000000000001', 'owner', NULL),
-  ('d0000000-0000-0000-0000-000000000026', 'd0000000-0000-0000-0000-000000000014', 'a0000000-0000-0000-0000-000000000002', 'owner', NULL)
+  -- Neural Ninjas: Alice (owner), Bob, Eve
+  ('d0000000-0000-0000-0000-000000000021', 'd0000000-0000-0000-0000-000000000011', 'd0000000-0000-0000-0000-000000000041', 'owner', NULL),
+  ('d0000000-0000-0000-0000-000000000022', 'd0000000-0000-0000-0000-000000000011', 'd0000000-0000-0000-0000-000000000042', 'member', 'd0000000-0000-0000-0000-000000000041'),
+  ('d0000000-0000-0000-0000-000000000023', 'd0000000-0000-0000-0000-000000000011', 'd0000000-0000-0000-0000-000000000045', 'member', 'd0000000-0000-0000-0000-000000000041'),
+  -- Byte Bandits: Bob (owner), Carol, Dave, Frank
+  ('d0000000-0000-0000-0000-000000000024', 'd0000000-0000-0000-0000-000000000012', 'd0000000-0000-0000-0000-000000000042', 'owner', NULL),
+  ('d0000000-0000-0000-0000-000000000025', 'd0000000-0000-0000-0000-000000000012', 'd0000000-0000-0000-0000-000000000043', 'member', 'd0000000-0000-0000-0000-000000000042'),
+  ('d0000000-0000-0000-0000-000000000026', 'd0000000-0000-0000-0000-000000000012', 'd0000000-0000-0000-0000-000000000044', 'member', 'd0000000-0000-0000-0000-000000000042'),
+  ('d0000000-0000-0000-0000-000000000027', 'd0000000-0000-0000-0000-000000000012', 'd0000000-0000-0000-0000-000000000046', 'member', 'd0000000-0000-0000-0000-000000000042'),
+  -- Quantum Quokkas: Carol (owner), Henry
+  ('d0000000-0000-0000-0000-000000000028', 'd0000000-0000-0000-0000-000000000013', 'd0000000-0000-0000-0000-000000000043', 'owner', NULL),
+  ('d0000000-0000-0000-0000-000000000029', 'd0000000-0000-0000-0000-000000000013', 'd0000000-0000-0000-0000-000000000048', 'member', 'd0000000-0000-0000-0000-000000000043'),
+  -- Prompt Pirates: Henry (owner), Jack
+  ('d0000000-0000-0000-0000-00000000002a', 'd0000000-0000-0000-0000-000000000014', 'd0000000-0000-0000-0000-000000000048', 'owner', NULL),
+  ('d0000000-0000-0000-0000-00000000002b', 'd0000000-0000-0000-0000-000000000014', 'd0000000-0000-0000-0000-00000000004a', 'member', 'd0000000-0000-0000-0000-000000000048')
 ON CONFLICT (team_id, user_id) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
@@ -105,9 +133,11 @@ ON CONFLICT (id) DO NOTHING;
 -- the repository relies on a bare ON CONFLICT DO NOTHING).
 INSERT INTO check_ins (id, event_id, user_id, itinerary_item_id, method, checked_in_by, checked_in_at)
 VALUES
-  ('d0000000-0000-0000-0000-000000000041', 'e0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000031', 'manual', 'a0000000-0000-0000-0000-000000000001', '2026-09-10 08:12:00+00'),
-  ('d0000000-0000-0000-0000-000000000042', 'e0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000032', 'qr', NULL, '2026-09-10 09:55:00+00'),
-  ('d0000000-0000-0000-0000-000000000043', 'e0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000032', 'manual', 'a0000000-0000-0000-0000-000000000001', '2026-09-10 10:02:00+00')
+  ('d0000000-0000-0000-0000-000000000041', 'e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000041', 'd0000000-0000-0000-0000-000000000031', 'manual', 'a0000000-0000-0000-0000-000000000001', '2026-09-10 08:12:00+00'),
+  ('d0000000-0000-0000-0000-000000000042', 'e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000042', 'd0000000-0000-0000-0000-000000000032', 'qr', NULL, '2026-09-10 09:55:00+00'),
+  ('d0000000-0000-0000-0000-000000000043', 'e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000043', 'd0000000-0000-0000-0000-000000000032', 'manual', 'a0000000-0000-0000-0000-000000000001', '2026-09-10 10:02:00+00'),
+  ('d0000000-0000-0000-0000-000000000044', 'e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000044', 'd0000000-0000-0000-0000-000000000031', 'qr', NULL, '2026-09-10 08:20:00+00'),
+  ('d0000000-0000-0000-0000-000000000045', 'e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000045', 'd0000000-0000-0000-0000-000000000033', 'manual', 'a0000000-0000-0000-0000-000000000001', '2026-09-10 13:05:00+00')
 ON CONFLICT (id) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
@@ -169,7 +199,7 @@ VALUES
     'd0000000-0000-0000-0000-000000000071',
     'e0000000-0000-0000-0000-000000000002',
     'd0000000-0000-0000-0000-000000000002',
-    'a0000000-0000-0000-0000-000000000002',
+    'd0000000-0000-0000-0000-000000000041',
     'a0000000-0000-0000-0000-000000000001',
     NOW() - INTERVAL '9 days',
     NOW() - INTERVAL '2 days',
@@ -180,7 +210,7 @@ VALUES
     'd0000000-0000-0000-0000-000000000072',
     'e0000000-0000-0000-0000-000000000002',
     'd0000000-0000-0000-0000-000000000001',
-    'a0000000-0000-0000-0000-000000000002',
+    'd0000000-0000-0000-0000-000000000042',
     'a0000000-0000-0000-0000-000000000001',
     '2026-09-10 10:30:00+00',
     '2026-09-11 18:00:00+00',
@@ -230,6 +260,6 @@ ON CONFLICT (project_submission_id, judge_user_id) DO NOTHING;
 -- ---------------------------------------------------------------------------
 INSERT INTO certificates (id, event_id, user_id, certificate_type, status, verification_code, issued_at, metadata)
 VALUES
-  ('d0000000-0000-0000-0000-0000000000b1', 'e0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000002', 'attendance', 'issued', 'DEMO-HACKATHON-ATTENDANCE-U2', '2026-09-12 18:05:00+00', '{"sessions_attended": 2}'),
-  ('d0000000-0000-0000-0000-0000000000b2', 'e0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000002', 'completion', 'eligible', 'DEMO-HACKATHON-COMPLETION-U2', NULL, '{"team": "Neural Ninjas", "placement": 1}')
+  ('d0000000-0000-0000-0000-0000000000b1', 'e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000041', 'attendance', 'issued', 'DEMO-HACKATHON-ATTENDANCE-U1', '2026-09-12 18:05:00+00', '{"sessions_attended": 3}'),
+  ('d0000000-0000-0000-0000-0000000000b2', 'e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000042', 'completion', 'eligible', 'DEMO-HACKATHON-COMPLETION-U2', NULL, '{"team": "Neural Ninjas", "placement": 1}')
 ON CONFLICT (verification_code) DO NOTHING;

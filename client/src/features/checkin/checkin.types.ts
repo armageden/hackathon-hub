@@ -6,6 +6,7 @@ export interface Checkin {
   method: string;
   checked_in_by: string | null;
   checked_in_at: string;
+  checked_out_at: string | null;
   status: string;
   full_name: string;
   email: string;
@@ -17,4 +18,12 @@ export interface CheckinStats {
   unique_users: number;
   qr_checkins: number;
   manual_checkins: number;
+  session_stats: SessionStat[];
+}
+
+export interface SessionStat {
+  session_id: string;
+  session_title: string;
+  checkin_count: number;
+  unique_users: number;
 }

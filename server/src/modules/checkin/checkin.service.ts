@@ -25,13 +25,9 @@ export const checkinService = {
       throw new NotFoundError("Invalid or expired QR token");
     }
 
-    // Already-checked-in test comes BEFORE the claim so a 409 here doesn't
-    // burn a perfectly good token.
     const existing = await checkinRepository.findCheckin(eventId, qrToken.user_id);
     if (existing) throw new ConflictError("User already checked in");
 
-    // Atomic single-use claim — the loser of a concurrent double-scan gets a
-    // clean conflict instead of a second check-in row.
     const claimed = await checkinRepository.claimQRToken(qrToken.id);
     if (!claimed) {
       throw new ConflictError("QR token already used");
@@ -49,5 +45,31 @@ export const checkinService = {
 
   async getStats(eventId: string) {
     return checkinRepository.getCheckinStats(eventId);
+  },
+
+  async bulkCheckin(eventId: string, userIds: string[], checkedBy: string, itineraryItemId: string) {
+    let checkedIn = 0;
+    for (const userId of userIds) {
+      try {
+        const existing = await checkinRepository.findCheckin(eventId, userId, itineraryItemId);
+        if (!existing) {
+          await checkinRepository.createCheckin(
+            eventId, userId, "manual", checkedBy, itineraryItemId
+          );
+          checkedIn++;
+        }
+      } catch {
+        // Skip individual failures silently in bulk operations
+      }
+    }
+    return checkedIn;
+  },
+
+  async checkout(eventId: string, checkinId: string) {
+    const checkin = await checkinRepository.findCheckinById(eventId, checkinId);
+    if (!checkin) throw new NotFoundError("Check-in record not found");
+    if (checkin.checked_out_at) throw new ConflictError("Already checked out");
+
+    return checkinRepository.checkout(checkinId);
   },
 };

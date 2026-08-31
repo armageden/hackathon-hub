@@ -18,6 +18,9 @@ export const itineraryService = {
       title: string;
       description?: string;
       location?: string;
+      room_area?: string;
+      speaker_name?: string;
+      materials_url?: string;
       starts_at: string;
       ends_at: string;
       session_type?: string;
@@ -42,7 +45,10 @@ export const itineraryService = {
       data.location || null,
       data.starts_at,
       data.ends_at,
-      data.session_type || "general"
+      data.session_type || "general",
+      data.room_area || null,
+      data.speaker_name || null,
+      data.materials_url || null
     );
   },
 
@@ -53,6 +59,9 @@ export const itineraryService = {
       title?: string;
       description?: string;
       location?: string;
+      room_area?: string;
+      speaker_name?: string;
+      materials_url?: string;
       starts_at?: string;
       ends_at?: string;
       session_type?: string;
@@ -62,9 +71,6 @@ export const itineraryService = {
     const item = await itineraryRepository.findById(eventId, itemId);
     if (!item) throw new NotFoundError("Itinerary item not found");
 
-    // Effective-range check: a partial update supplying only one bound is
-    // validated against the stored counterpart, so inverted ranges can't
-    // slip through the both-fields-present guard.
     const effectiveStart = data.starts_at ?? item.starts_at;
     const effectiveEnd = data.ends_at ?? item.ends_at;
     if (
@@ -85,6 +91,9 @@ export const itineraryService = {
     if (data.title !== undefined) fields.title = data.title.trim();
     if (data.description !== undefined) fields.description = data.description;
     if (data.location !== undefined) fields.location = data.location;
+    if (data.room_area !== undefined) fields.room_area = data.room_area;
+    if (data.speaker_name !== undefined) fields.speaker_name = data.speaker_name;
+    if (data.materials_url !== undefined) fields.materials_url = data.materials_url;
     if (data.starts_at !== undefined) fields.starts_at = data.starts_at;
     if (data.ends_at !== undefined) fields.ends_at = data.ends_at;
     if (data.session_type !== undefined) fields.session_type = data.session_type;

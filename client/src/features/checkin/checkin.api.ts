@@ -50,3 +50,25 @@ export async function getCheckinStats(eventId: string = getActiveEventId()): Pro
   return res.stats;
 }
 
+export async function bulkCheckin(
+  eventId: string = getActiveEventId(),
+  userIds: string[],
+  itineraryItemId: string
+): Promise<{ checked_in: number }> {
+  const res = await apiRequest<{ checked_in: number }>(`/events/${eventId}/checkin/bulk`, {
+    method: "POST",
+    body: JSON.stringify({ user_ids: userIds, itinerary_item_id: itineraryItemId }),
+  });
+  return res;
+}
+
+export async function checkout(
+  eventId: string = getActiveEventId(),
+  checkinId: string
+): Promise<Checkin> {
+  const res = await apiRequest<{ checkin: Checkin }>(`/events/${eventId}/checkin/${checkinId}/checkout`, {
+    method: "POST",
+  });
+  return res.checkin;
+}
+

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -10,6 +10,7 @@ import { Sheet, SheetTrigger, SheetContent } from '@/components/ui/Sheet';
 import { useAuth, useEvent } from '@/app/providers';
 import { useDemoMode } from '@/app/demo-mode';
 import { enableDemoData, disableDemoData } from '@/lib/demo.api';
+import { getUnreadCount } from '@/features/notifications/notifications.api';
 import {
   LayoutDashboard,
   Box,
@@ -20,6 +21,7 @@ import {
   CalendarDays,
   UserCheck,
   Award,
+  Bell,
   LogOut,
   Menu,
   X,
@@ -39,6 +41,7 @@ const NAV_ITEMS = [
   { name: 'Itinerary', path: 'itinerary', icon: CalendarDays },
   { name: 'Check-in', path: 'checkin', icon: UserCheck },
   { name: 'Certificates', path: 'certificates', icon: Award },
+  { name: 'Notifications', path: 'notifications', icon: Bell },
 ];
 
 // Event-scoped links; without an active event everything points at the hub.
@@ -113,6 +116,21 @@ export function Sidebar() {
   const navigation = useNavigation();
   const { eventId } = useEvent();
   const [collapsed, setCollapsed] = useState(false);
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
+
+  useEffect(() => {
+    if (!eventId) return;
+    let alive = true;
+    async function fetchCount() {
+      try {
+        const count = await getUnreadCount(eventId!);
+        if (alive) setUnreadNotifs(count);
+      } catch { /* ignore */ }
+    }
+    fetchCount();
+    const interval = setInterval(fetchCount, 30000);
+    return () => { alive = false; clearInterval(interval); };
+  }, [eventId]);
 
   return (
     <aside
@@ -147,6 +165,7 @@ export function Sidebar() {
       <nav className="flex-1 overflow-y-auto p-4 space-y-1" aria-label="Main navigation">
         {navigation.map((item) => {
           const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
+          const isNotif = item.path === 'notifications';
           return (
             <NavLink
               key={item.name}
@@ -161,7 +180,12 @@ export function Sidebar() {
               aria-current={isActive ? 'page' : undefined}
               title={collapsed ? item.name : undefined}
             >
-              <item.icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+              <span className="relative">
+                <item.icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                {isNotif && unreadNotifs > 0 && (
+                  <span className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-gray-950" />
+                )}
+              </span>
               {!collapsed && <span>{item.name}</span>}
             </NavLink>
           );
@@ -255,6 +279,21 @@ export function MobileSidebar() {
   const location = useLocation();
   const navigation = useNavigation();
   const { eventId } = useEvent();
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
+
+  useEffect(() => {
+    if (!eventId) return;
+    let alive = true;
+    async function fetchCount() {
+      try {
+        const count = await getUnreadCount(eventId!);
+        if (alive) setUnreadNotifs(count);
+      } catch { /* ignore */ }
+    }
+    fetchCount();
+    const interval = setInterval(fetchCount, 30000);
+    return () => { alive = false; clearInterval(interval); };
+  }, [eventId]);
 
   return (
     <Sheet>
@@ -281,6 +320,7 @@ export function MobileSidebar() {
         <nav className="space-y-1 mb-6" aria-label="Main navigation">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
+            const isNotif = item.path === 'notifications';
             return (
               <NavLink
                 key={item.name}
@@ -293,7 +333,12 @@ export function MobileSidebar() {
                 )}
                 aria-current={isActive ? 'page' : undefined}
               >
-                <item.icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                <span className="relative">
+                  <item.icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                  {isNotif && unreadNotifs > 0 && (
+                    <span className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-gray-950" />
+                  )}
+                </span>
                 <span>{item.name}</span>
               </NavLink>
             );

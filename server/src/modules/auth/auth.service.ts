@@ -11,7 +11,7 @@ export const authService = {
     email: string,
     password: string,
     fullName: string
-  ): Promise<{ user: UserPublic; token: string }> {
+  ): Promise<{ user: Omit<import("../../types/index.js").User, "password_hash">; token: string }> {
     const existing = await authRepository.findByEmail(email);
     if (existing) {
       throw new ConflictError("A user with this email already exists");
@@ -20,19 +20,20 @@ export const authService = {
     const passwordHash = await bcrypt.hash(password, 12);
     const user = await authRepository.create(email, passwordHash, fullName);
 
+    const { password_hash: _, ...safeUser } = user as any;
     const token = generateToken({
       sub: user.id,
       email: user.email,
       globalRole: effectiveGlobalRole(user) as "admin" | "user",
     });
 
-    return { user: withEffectiveRole(user), token };
+    return { user: withEffectiveRole(safeUser), token };
   },
 
   async login(
     email: string,
     password: string
-  ): Promise<{ user: UserPublic; token: string }> {
+  ): Promise<{ user: Omit<import("../../types/index.js").User, "password_hash">; token: string }> {
     const user = await authRepository.findByEmail(email);
     if (!user) {
       throw new AuthenticationError("Invalid email or password");
@@ -43,13 +44,14 @@ export const authService = {
       throw new AuthenticationError("Invalid email or password");
     }
 
+    const { password_hash: _, ...safeUser } = user;
     const token = generateToken({
       sub: user.id,
       email: user.email,
       globalRole: effectiveGlobalRole(user) as "admin" | "user",
     });
 
-    return { user: withEffectiveRole(user), token };
+    return { user: withEffectiveRole(safeUser), token };
   },
 
   async getMe(userId: string): Promise<UserPublic> {

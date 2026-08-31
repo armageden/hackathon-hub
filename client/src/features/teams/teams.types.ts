@@ -43,6 +43,10 @@ export interface TeamMember {
   joined_at: string;
   full_name: string;
   email: string;
+  bio: string | null;
+  experience_level: string | null;
+  preferred_role: string | null;
+  tech_stack_summary: string | null;
 }
 
 export interface TeamApplication {

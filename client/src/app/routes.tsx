@@ -17,6 +17,7 @@ import CertificatesPage from '../features/certificates/CertificatesPage';
 import VenuePage from '../features/venue/VenuePage';
 import ProjectsPage from '../features/projects/ProjectsPage';
 import JudgingPage from '../features/judging/JudgingPage';
+import NotificationsPage from '../features/notifications/NotificationsPage';
 import AdminPage from '../features/admin/AdminPage';
 import { useAuth, useEvent } from './providers';
 
@@ -228,6 +229,14 @@ export const router = createBrowserRouter([
             element: (
               <ProtectedRoute>
                 <CertificatesPage />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'notifications',
+            element: (
+              <ProtectedRoute>
+                <NotificationsPage />
               </ProtectedRoute>
             ),
           },

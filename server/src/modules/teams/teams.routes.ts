@@ -59,7 +59,7 @@ router.post(
 router.delete(
   "/:teamId/members/:userId",
   authenticate,
-  requireEventRole("participant"),
+  requireEventRole("organizer", "participant"),
   teamsController.removeMember
 );
 
