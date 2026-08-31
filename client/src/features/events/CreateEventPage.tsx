@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useEvent, type Event } from '@/app/providers';
+import { useEvent, useAuth, type Event } from '@/app/providers';
 import { api } from '@/lib/api';
 import { Calendar, ArrowLeft, Loader2 } from 'lucide-react';
 
 export default function CreateEventPage() {
   const navigate = useNavigate();
   const { refetch } = useEvent();
+  const { user } = useAuth();
 
   const [form, setForm] = useState({
     name: '',
@@ -18,6 +19,20 @@ export default function CreateEventPage() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Defense in depth for the server rule (POST /events requires the global
+  // admin role): non-admins who land here via a stale link see a clear
+  // message instead of a form that can only ever 403.
+  if (user && user.global_role !== 'admin') {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-16 text-center">
+        <h1 className="text-2xl font-bold text-white mb-3">Admins only</h1>
+        <p className="text-gray-400">
+          Only platform admins can create events. Ask an admin to create one and add you as a member.
+        </p>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

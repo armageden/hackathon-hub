@@ -1,4 +1,4 @@
-import { useAuth, useEvent } from "../app/providers";
+import { useAuth, useScopedEventId } from "../app/providers";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { formatDate } from '@/lib/formatters';
@@ -17,7 +17,9 @@ const QUICK_ACTIONS = [
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { eventId } = useEvent();
+  // URL param wins — matches what ProtectedRoute validated and what the
+  // address bar shows; context can momentarily disagree during demo toggles.
+  const eventId = useScopedEventId();
   const navigate = useNavigate();
 
   const quickActions = QUICK_ACTIONS.map(({ label, path, description }) => ({

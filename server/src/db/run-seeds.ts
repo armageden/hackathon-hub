@@ -7,17 +7,21 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function runSeeds() {
-  const seedFile = path.join(__dirname, "seeds", "seed.sql");
-  const sql = fs.readFileSync(seedFile, "utf-8");
+  const seedFiles = ["seed.sql", "showcase-seed.sql"];
 
-  console.log("Running seed data...");
-  try {
-    await pool.query(sql);
-    console.log("Seed data inserted successfully");
-  } catch (err: unknown) {
-    const error = err as Error;
-    console.error("Seed failed:", error.message);
-    process.exit(1);
+  for (const file of seedFiles) {
+    const seedFile = path.join(__dirname, "seeds", file);
+    const sql = fs.readFileSync(seedFile, "utf-8");
+
+    console.log(`Running seed data (${file})...`);
+    try {
+      await pool.query(sql);
+      console.log(`Seed data inserted successfully (${file})`);
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error(`Seed failed (${file}):`, error.message);
+      process.exit(1);
+    }
   }
 
   await pool.end();

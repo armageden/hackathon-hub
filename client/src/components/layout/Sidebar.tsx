@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Link, useLocation, NavLink } from 'react-router-dom';
+import { Link, useLocation, useNavigate, NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
@@ -11,6 +11,7 @@ import { useAuth, useEvent } from '@/app/providers';
 import { useDemoMode } from '@/app/demo-mode';
 import { enableDemoData, disableDemoData } from '@/lib/demo.api';
 import { getUnreadCount } from '@/features/notifications/notifications.api';
+import { DEMO_EVENT_ID, REAL_EVENT_ID } from '@/lib/event-id';
 import {
   LayoutDashboard,
   Box,
@@ -56,6 +57,8 @@ function useNavigation() {
 function DemoModeToggle({ collapsed }: { collapsed?: boolean }) {
   const { demoMode, toggleDemoMode } = useDemoMode();
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const isAdmin = user?.global_role === 'admin';
 
   // Admins seed/purge the demo event server-side before the view flips, so
@@ -71,6 +74,18 @@ function DemoModeToggle({ collapsed }: { collapsed?: boolean }) {
       }
     }
     toggleDemoMode();
+
+    // The URL is the source of truth for event scope. Without navigating,
+    // ProtectedRoute snaps the selection straight back to the URL's event,
+    // so on feature pages the toggle appears to do nothing while the sidebar
+    // claims demo mode is on. Move to the same page under the target event
+    // so URL, selection, and data all agree. (demoMode is the pre-toggle
+    // value: it was on → we are going back to the real event.)
+    const targetEventId = demoMode ? REAL_EVENT_ID : DEMO_EVENT_ID;
+    const match = /^\/events\/([^/]+)(\/.*)?$/.exec(location.pathname);
+    if (match && match[1] !== targetEventId) {
+      navigate(`/events/${targetEventId}${match[2] ?? ''}`, { replace: true });
+    }
   };
 
   return (

@@ -1,13 +1,17 @@
 'use client';
 
-import { useEvent } from '@/app/providers';
+import { useEvent, useAuth } from '@/app/providers';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Plus, Users, ArrowRight } from 'lucide-react';
 import { formatDate, formatDateRange, formatStatus } from '@/lib/formatters';
 
 export default function EventsPage() {
   const { events, loading, setEventId } = useEvent();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  // Mirrors the server rule: POST /events requires the global admin role
+  // (temporary admins included while their window is open).
+  const isAdmin = user?.global_role === 'admin';
 
   if (loading) {
     return (
@@ -27,13 +31,15 @@ export default function EventsPage() {
             Select an event to manage or create a new one
           </p>
         </div>
-        <button
-          onClick={() => navigate('/events/create')}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
-        >
-          <Plus className="h-5 w-5" />
-          Create Event
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => navigate('/events/create')}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+          >
+            <Plus className="h-5 w-5" />
+            Create Event
+          </button>
+        )}
       </div>
 
       {/* Events Grid */}
@@ -42,16 +48,19 @@ export default function EventsPage() {
           <Calendar className="h-16 w-16 text-gray-600 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-white mb-2">No Events Yet</h2>
           <p className="text-gray-400 mb-6 max-w-md mx-auto">
-            Create your first hackathon event to get started. You'll be able to manage teams,
-            hardware, schedules, and more.
+            {isAdmin
+              ? "Create your first hackathon event to get started. You'll be able to manage teams, hardware, schedules, and more."
+              : "No events yet. A platform admin can create an event and add you as a member."}
           </p>
-          <button
-            onClick={() => navigate('/events/create')}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
-          >
-            <Plus className="h-5 w-5" />
-            Create Your First Event
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => navigate('/events/create')}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+            >
+              <Plus className="h-5 w-5" />
+              Create Your First Event
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

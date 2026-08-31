@@ -220,7 +220,7 @@ free_port() {
 start_monitor() {
     (
         # Snapshot mtimes at startup
-        newest_mtime "$SERVER_DIR/package.json" "$SERVER_DIR/package-lock.json" "$SERVER_DIR/tsconfig.json" "$SERVER_DIR/.env" > "$RUN_DIR/stamp.backend"
+        newest_mtime "$SERVER_DIR/package.json" "$SERVER_DIR/package-lock.json" "$SERVER_DIR/tsconfig.json" "$SERVER_DIR/.env" "$SERVER_DIR"/src/db/migrations/*.sql > "$RUN_DIR/stamp.backend"
         newest_mtime "$CLIENT_DIR/package.json" "$CLIENT_DIR/package-lock.json" "$CLIENT_DIR/tsconfig.json" "$CLIENT_DIR/tsconfig.app.json" "$CLIENT_DIR/vite.config.ts" "$CLIENT_DIR/.env" > "$RUN_DIR/stamp.frontend"
         newest_mtime "$PROJECT_ROOT/.env" "$PROJECT_ROOT/docker-compose.yml" "$PROJECT_ROOT/start.sh" > "$RUN_DIR/stamp.root"
         local backend_fails=0 frontend_fails=0
@@ -232,19 +232,28 @@ start_monitor() {
             if [[ $(newest_mtime "$PROJECT_ROOT/.env" "$PROJECT_ROOT/docker-compose.yml" "$PROJECT_ROOT/start.sh") -gt $(cat "$RUN_DIR/stamp.root") ]]; then
                 log_warn "[WATCH] Root config or start.sh changed — reloading all services"
                 newest_mtime "$PROJECT_ROOT/.env" "$PROJECT_ROOT/docker-compose.yml" "$PROJECT_ROOT/start.sh" > "$RUN_DIR/stamp.root"
-                newest_mtime "$SERVER_DIR/package.json" "$SERVER_DIR/package-lock.json" "$SERVER_DIR/tsconfig.json" "$SERVER_DIR/.env" > "$RUN_DIR/stamp.backend"
+                newest_mtime "$SERVER_DIR/package.json" "$SERVER_DIR/package-lock.json" "$SERVER_DIR/tsconfig.json" "$SERVER_DIR/.env" "$SERVER_DIR"/src/db/migrations/*.sql > "$RUN_DIR/stamp.backend"
                 newest_mtime "$CLIENT_DIR/package.json" "$CLIENT_DIR/package-lock.json" "$CLIENT_DIR/tsconfig.json" "$CLIENT_DIR/tsconfig.app.json" "$CLIENT_DIR/vite.config.ts" "$CLIENT_DIR/.env" > "$RUN_DIR/stamp.frontend"
                 restart_service backend
                 restart_service frontend
                 continue
             fi
 
-            # --- Backend dependency/config changes ---
-            if [[ $(newest_mtime "$SERVER_DIR/package.json" "$SERVER_DIR/package-lock.json" "$SERVER_DIR/tsconfig.json" "$SERVER_DIR/.env") -gt $(cat "$RUN_DIR/stamp.backend") ]]; then
-                log_warn "[WATCH] Backend config changed — reinstalling deps & restarting backend"
-                newest_mtime "$SERVER_DIR/package.json" "$SERVER_DIR/package-lock.json" "$SERVER_DIR/tsconfig.json" "$SERVER_DIR/.env" > "$RUN_DIR/stamp.backend"
+            # --- Backend dependency/config/migration changes ---
+            if [[ $(newest_mtime "$SERVER_DIR/package.json" "$SERVER_DIR/package-lock.json" "$SERVER_DIR/tsconfig.json" "$SERVER_DIR/.env" "$SERVER_DIR"/src/db/migrations/*.sql) -gt $(cat "$RUN_DIR/stamp.backend") ]]; then
+                log_warn "[WATCH] Backend config or migrations changed — migrating & restarting backend"
+                newest_mtime "$SERVER_DIR/package.json" "$SERVER_DIR/package-lock.json" "$SERVER_DIR/tsconfig.json" "$SERVER_DIR/.env" "$SERVER_DIR"/src/db/migrations/*.sql > "$RUN_DIR/stamp.backend"
                 if [[ $(newest_mtime "$SERVER_DIR/package.json" "$SERVER_DIR/package-lock.json") -gt $(mtime_of "$SERVER_DIR/node_modules") ]]; then
                     install_deps "$SERVER_DIR" "backend" || log_error "Backend dependency install failed"
+                fi
+                # Migrate is idempotent (applied files are skipped), so running
+                # it here picks up new migrations pulled from Git without a
+                # manual `npm run migrate`. Failure is non-fatal: the restart
+                # still happens and the health monitor keeps watch.
+                if (cd "$SERVER_DIR" && npm run migrate >/dev/null 2>&1); then
+                    log_success "[WATCH] Migrations applied (if any were pending)"
+                else
+                    log_error "[WATCH] Migration run failed — see logs; backend restarting anyway"
                 fi
                 restart_service backend
             fi
@@ -358,6 +367,19 @@ setup_env_files() {
         if [[ ! -f "$pair/.env" && -f "$pair/.env.example" ]]; then
             log_info "Creating $pair/.env from .env.example"
             cp "$pair/.env.example" "$pair/.env"
+            # The server (and the migration runner) read DATABASE_URL from
+            # server/.env — build it from the DB_* vars this script manages so
+            # DB_PASSWORD etc. aren't silently ignored. Passwords with URL
+            # special characters (@ / : ?) must be percent-encoded by the user.
+            if [[ "$pair" == "$SERVER_DIR" ]]; then
+                local db_url="postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+                if grep -q '^DATABASE_URL=' "$pair/.env"; then
+                    sed -i.bak "s|^DATABASE_URL=.*|DATABASE_URL=${db_url}|" "$pair/.env" && rm -f "$pair/.env.bak"
+                else
+                    printf '\nDATABASE_URL=%s\n' "$db_url" >> "$pair/.env"
+                fi
+                log_info "server/.env DATABASE_URL built from DB_HOST/DB_PORT/DB_USER/DB_PASSWORD"
+            fi
             log_success "Created $pair/.env"
         else
             [[ -f "$pair/.env" ]] && log_success "$pair/.env already exists"
@@ -659,6 +681,8 @@ Options:
 
 Environment Variables:
   DB_HOST, DB_PORT, DB_USER, DB_PASSWORD   PostgreSQL connection (defaults: localhost, 5432, postgres, postgres)
+                                           When server/.env is first created, its DATABASE_URL is
+                                           built from these (percent-encode special chars in passwords).
   BACKEND_PORT, FRONTEND_PORT              Service ports (defaults: 5000, 5173)
   DEBUG=1                                  Enable debug output
 
@@ -668,6 +692,9 @@ Durability features (dev mode, default):
   - Update watcher: editing package.json/lockfiles/tsconfig/vite config/.env
     (or start.sh itself) reinstalls dependencies if needed and restarts the
     affected service(s) — no manual restart after big updates.
+  - Migration watcher: new files in server/src/db/migrations/ (e.g. pulled
+    from Git) trigger `npm run migrate` (idempotent) and a backend restart —
+    no manual migrate step after pulling.
   - Health monitor: services that stop answering HTTP checks get restarted.
   - Port reclamation: occupied service ports are freed at startup.
   - Source-level hot reload is still handled by tsx watch (backend)
