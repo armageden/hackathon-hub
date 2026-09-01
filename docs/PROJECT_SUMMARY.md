@@ -1,6 +1,6 @@
 # Hackathon Hub - Project Summary
 
-> **Last Updated:** 2026-08-31 (auto-generated)  
+> **Last Updated:** 2026-09-01 (auto-generated)  
 > **Status:** Core Backend & Frontend Foundation Complete | Feature Implementation In Progress
 
 ---
@@ -138,6 +138,7 @@ src/modules/
 | **events** | 🟡 Partial | Some files present |
 | **itinerary** | 🟡 Partial | Some files present |
 | **judging** | 🟡 Partial | Some files present |
+| **members** | 🟡 Partial | Some files present |
 | **notifications** | 🟡 Partial | Some files present |
 | **projects** | 🟡 Partial | Some files present |
 | **teams** | 🟡 Partial | Some files present |
@@ -167,6 +168,7 @@ client/src/
 │   └── events/           🟡 Partial
 │   └── itinerary/           🟡 Partial
 │   └── judging/           🟡 Partial
+│   └── members/           🟡 Partial
 │   └── notifications/           🟡 Partial
 │   └── projects/           🟡 Partial
 │   └── teams/           🟡 Partial
@@ -214,6 +216,7 @@ client/src/
 - **events** - Has some files but incomplete
 - **itinerary** - Has some files but incomplete
 - **judging** - Has some files but incomplete
+- **members** - Has some files but incomplete
 - **notifications** - Has some files but incomplete
 - **projects** - Has some files but incomplete
 - **teams** - Has some files but incomplete
@@ -258,7 +261,7 @@ client/src/
 | Metric | Count |
 |--------|-------|
 | **Backend TypeScript Files** | 74 (excluding node_modules) |
-| **Frontend TypeScript/TSX Files** | 120 |
+| **Frontend TypeScript/TSX Files** | 123 |
 | **Database Migrations** | 22 |
 | **UI Components** | 16 |
 | **Chart Components** | 5 |
@@ -321,4 +324,4 @@ client/src/
 
 ---
 
-*Last auto-generated: 2026-08-31T20:27:35.773Z. This file is partially auto-generated - the "Not Started" and "Priority Actions" sections are maintained manually.
+*Last auto-generated: 2026-09-01T06:04:00.948Z. This file is partially auto-generated - the "Not Started" and "Priority Actions" sections are maintained manually.
