@@ -35,8 +35,14 @@ export const checkinRepository = {
     checkedInBy: string | null,
     itineraryItemId?: string
   ) {
+    // ON CONFLICT must name a real unique index — otherwise PG raises 42P10.
+    // The dedup index from migration 016 is an expression index on
+    // (event_id, user_id, COALESCE(itinerary_item_id::text, '')).
     const result = await pool.query(
-      "INSERT INTO check_ins (event_id, user_id, itinerary_item_id, method, checked_in_by) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING RETURNING *",
+      `INSERT INTO check_ins (event_id, user_id, itinerary_item_id, method, checked_in_by)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (event_id, user_id, COALESCE(itinerary_item_id::text, ''))
+       DO NOTHING RETURNING *`,
       [eventId, userId, itineraryItemId || null, method, checkedInBy]
     );
     return result.rows[0] || null;

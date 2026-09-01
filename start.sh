@@ -801,7 +801,7 @@ main() {
 
     # 9. Success!
     echo -e "\n${GREEN}╔══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║  All services started successfully! 🎉                    ║${NC}"
+    echo -e "${GREEN}║  All services started successfully! 🎉                   ║${NC}"
     echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"
     echo -e "  ${CYAN}Frontend:${NC}     http://localhost:$FRONTEND_PORT/"
     echo -e "  ${CYAN}Backend API:${NC}  http://localhost:$BACKEND_PORT/api/v1/health"

@@ -23,6 +23,16 @@ export const adminRepository = {
     return result.rows;
   },
 
+  /** Every registered account — used by admins to pick members to add to an event. */
+  async listUsers(): Promise<Array<Pick<AdminAccount, "id" | "email" | "full_name" | "global_role">>> {
+    const result = await pool.query(
+      `SELECT id, email, full_name, global_role
+       FROM users
+       ORDER BY full_name ASC`
+    );
+    return result.rows;
+  },
+
   async setAdminRole(
     userId: string,
     role: "admin" | "user",

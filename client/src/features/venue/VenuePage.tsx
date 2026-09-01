@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { MapPin, Plus, RefreshCw } from "lucide-react";
 import { useEventRole } from "@/hooks/useEventRole";
 import { ScheduleGrid } from "@/components/venue/ScheduleGrid";
@@ -23,7 +23,14 @@ import * as venueApi from "./venue.api";
 import { listTeams } from "../teams/teams.api";
 import { useScopedEventId } from "@/app/providers";
 
-const LOCATION_TYPES = ["room", "booth", "table", "stage", "lab", "desk"] as const;
+const LOCATION_TYPES = [
+  "room",
+  "booth",
+  "table",
+  "stage",
+  "lab",
+  "desk",
+] as const;
 const ASSIGNABLE_TYPES = ["team", "project", "exhibit"] as const;
 
 type Tab = "schedule" | "map" | "locations";
@@ -76,14 +83,20 @@ export default function VenuePage() {
   const [teams, setTeams] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<Message | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const [mapWidth, setMapWidth] = useState(0);
 
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
-  const [editingLocation, setEditingLocation] = useState<VenueLocation | null>(null);
-  const [locationForm, setLocationForm] = useState<LocationFormState>(emptyLocationForm);
+  const [editingLocation, setEditingLocation] = useState<VenueLocation | null>(
+    null,
+  );
+  const [locationForm, setLocationForm] =
+    useState<LocationFormState>(emptyLocationForm);
   const [locationSaving, setLocationSaving] = useState(false);
 
   const [assignmentDialogOpen, setAssignmentDialogOpen] = useState(false);
-  const [editingAssignment, setEditingAssignment] = useState<VenueAssignment | null>(null);
+  const [editingAssignment, setEditingAssignment] =
+    useState<VenueAssignment | null>(null);
   const [assignmentForm, setAssignmentForm] = useState<AssignmentFormState>({
     venue_location_id: "",
     assignable_type: "team",
@@ -104,7 +117,10 @@ export default function VenuePage() {
       setAssignments(asgs);
       setMessage(null);
     } catch (err) {
-      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to load venue data" });
+      setMessage({
+        type: "error",
+        text: err instanceof Error ? err.message : "Failed to load venue data",
+      });
     } finally {
       setLoading(false);
     }
@@ -113,6 +129,19 @@ export default function VenuePage() {
   useEffect(() => {
     loadAll();
   }, [loadAll]);
+
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+    const updateWidth = () => {
+      if (mapContainerRef.current) {
+        setMapWidth(mapContainerRef.current.offsetWidth);
+      }
+    };
+    updateWidth();
+    const ro = new ResizeObserver(() => updateWidth());
+    ro.observe(mapContainerRef.current);
+    return () => ro.disconnect();
+  }, [tab, locations.length, loading]);
 
   useEffect(() => {
     if (!canManage) return;
@@ -146,21 +175,30 @@ export default function VenuePage() {
     return { start, end };
   }, [assignments]);
 
-  const [mapPositions, setMapPositions] = useState<Record<string, { x: number; y: number }>>({});
-  const [deleteLocationTarget, setDeleteLocationTarget] = useState<VenueLocation | null>(null);
+  const [mapPositions, setMapPositions] = useState<
+    Record<string, { x: number; y: number }>
+  >({});
+  const [deleteLocationTarget, setDeleteLocationTarget] =
+    useState<VenueLocation | null>(null);
   const [deleteLocationSaving, setDeleteLocationSaving] = useState(false);
   const mapLocations = useMemo(
     () =>
       locations.map((loc, i) => ({
         ...loc,
-        position_x: mapPositions[loc.id]?.x ?? loc.position_x ?? 40 + (i % 4) * 240,
-        position_y: mapPositions[loc.id]?.y ?? loc.position_y ?? 40 + Math.floor(i / 4) * 180,
+        position_x:
+          mapPositions[loc.id]?.x ?? loc.position_x ?? 40 + (i % 4) * 240,
+        position_y:
+          mapPositions[loc.id]?.y ??
+          loc.position_y ??
+          40 + Math.floor(i / 4) * 180,
         size_width: 180,
         size_height: 120,
       })),
-    [locations, mapPositions]
+    [locations, mapPositions],
   );
-  const [selectedMapLocationId, setSelectedMapLocationId] = useState<string | null>(null);
+  const [selectedMapLocationId, setSelectedMapLocationId] = useState<
+    string | null
+  >(null);
 
   const handleDeleteLocation = async () => {
     if (!deleteLocationTarget) return;
@@ -203,26 +241,43 @@ export default function VenuePage() {
       const payload: CreateVenueLocationRequest = {
         name: locationForm.name.trim(),
         location_type: locationForm.location_type,
-        ...(locationForm.capacity ? { capacity: Number(locationForm.capacity) } : {}),
-        ...(locationForm.description ? { description: locationForm.description } : {}),
+        ...(locationForm.capacity
+          ? { capacity: Number(locationForm.capacity) }
+          : {}),
+        ...(locationForm.description
+          ? { description: locationForm.description }
+          : {}),
       };
       if (editingLocation) {
         await venueApi.updateLocation(EVENT_ID, editingLocation.id, payload);
-        setMessage({ type: "success", text: `Location "${payload.name}" updated` });
+        setMessage({
+          type: "success",
+          text: `Location "${payload.name}" updated`,
+        });
       } else {
         await venueApi.createLocation(EVENT_ID, payload);
-        setMessage({ type: "success", text: `Location "${payload.name}" created` });
+        setMessage({
+          type: "success",
+          text: `Location "${payload.name}" created`,
+        });
       }
       setLocationDialogOpen(false);
       await loadAll();
     } catch (err) {
-      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to save location" });
+      setMessage({
+        type: "error",
+        text: err instanceof Error ? err.message : "Failed to save location",
+      });
     } finally {
       setLocationSaving(false);
     }
   };
 
-  const openCreateAssignment = (locationId?: string, startTime?: Date, endTime?: Date) => {
+  const openCreateAssignment = (
+    locationId?: string,
+    startTime?: Date,
+    endTime?: Date,
+  ) => {
     setEditingAssignment(null);
     setAssignmentForm({
       venue_location_id: locationId ?? locations[0]?.id ?? "",
@@ -260,7 +315,11 @@ export default function VenuePage() {
         ends_at: localInputToIso(assignmentForm.ends_at) ?? undefined,
       };
       if (editingAssignment) {
-        await venueApi.updateAssignment(EVENT_ID, editingAssignment.id, payload);
+        await venueApi.updateAssignment(
+          EVENT_ID,
+          editingAssignment.id,
+          payload,
+        );
         setMessage({ type: "success", text: "Assignment updated" });
       } else {
         await venueApi.createAssignment(EVENT_ID, payload);
@@ -269,7 +328,10 @@ export default function VenuePage() {
       setAssignmentDialogOpen(false);
       await loadAll();
     } catch (err) {
-      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to save assignment" });
+      setMessage({
+        type: "error",
+        text: err instanceof Error ? err.message : "Failed to save assignment",
+      });
     } finally {
       setAssignmentSaving(false);
     }
@@ -282,7 +344,11 @@ export default function VenuePage() {
       setAssignmentDialogOpen(false);
       await loadAll();
     } catch (err) {
-      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to cancel assignment" });
+      setMessage({
+        type: "error",
+        text:
+          err instanceof Error ? err.message : "Failed to cancel assignment",
+      });
     }
   };
 
@@ -296,13 +362,21 @@ export default function VenuePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Venue &amp; Logistics</h1>
+          <h1 className="text-2xl font-bold text-white">
+            Venue &amp; Logistics
+          </h1>
           <p className="text-sm text-gray-400 mt-1">
-            Assign teams and exhibits to rooms, booths, and tables without double-booking.
+            Assign teams and exhibits to rooms, booths, and tables without
+            double-booking.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={loadAll} aria-label="Refresh">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={loadAll}
+            aria-label="Refresh"
+          >
             <RefreshCw className="h-4 w-4" />
           </Button>
           {canManage && (
@@ -349,7 +423,10 @@ export default function VenuePage() {
         locations.length === 0 ? (
           <div className="card p-10 text-center text-gray-400">
             <MapPin className="h-8 w-8 mx-auto mb-3 opacity-50" />
-            No locations yet.{canManage ? ' Click "New Location" to add your first room or table.' : ""}
+            No locations yet.
+            {canManage
+              ? ' Click "New Location" to add your first room or table.'
+              : ""}
           </div>
         ) : (
           <ScheduleGrid
@@ -359,7 +436,8 @@ export default function VenuePage() {
             eventEnd={gridWindow.end}
             onAssignmentClick={openEditAssignment}
             onTimeSlotClick={(locationId, startTime, endTime) => {
-              if (canManage) openCreateAssignment(locationId, startTime, endTime);
+              if (canManage)
+                openCreateAssignment(locationId, startTime, endTime);
             }}
           />
         )
@@ -371,57 +449,91 @@ export default function VenuePage() {
           </div>
         ) : (
           <>
-            <div className="card p-4 overflow-x-auto">
+            <div className="card p-4 overflow-visible" ref={mapContainerRef}>
               <VenueMap
                 locations={mapLocations}
                 assignments={assignments.filter((a) => a.status === "active")}
                 selectedLocationId={selectedMapLocationId}
                 onLocationClick={(loc) => setSelectedMapLocationId(loc.id)}
                 onLocationDragEnd={(locationId, x, y) => {
-                  setMapPositions((prev) => ({ ...prev, [locationId]: { x, y } }));
+                  setMapPositions((prev) => ({
+                    ...prev,
+                    [locationId]: { x, y },
+                  }));
                   // Persist the layout so it survives reloads.
                   venueApi
-                    .updateLocation(EVENT_ID, locationId, { position_x: x, position_y: y })
+                    .updateLocation(EVENT_ID, locationId, {
+                      position_x: x,
+                      position_y: y,
+                    })
                     .catch(() =>
-                      setMessage({ type: "error", text: "Could not save the map layout" })
+                      setMessage({
+                        type: "error",
+                        text: "Could not save the map layout",
+                      }),
                     );
                 }}
-                width={1000}
-                height={Math.max(400, Math.ceil(locations.length / 4) * 180 + 80)}
+                width={mapWidth || 1000}
+                height={Math.max(
+                  400,
+                  Math.ceil(locations.length / 4) * 180 + 80,
+                )}
               />
             </div>
-            <p className="mt-2 text-xs text-gray-500">Drag locations to arrange the layout — positions are saved automatically.</p>
+            <p className="mt-2 text-xs text-gray-500">
+              Drag locations to arrange the layout — positions are saved
+              automatically.
+            </p>
           </>
         )
       ) : (
         <div className="card overflow-hidden">
           {locations.length === 0 ? (
-            <div className="p-10 text-center text-gray-400">No locations yet.</div>
+            <div className="p-10 text-center text-gray-400">
+              No locations yet.
+            </div>
           ) : (
             <table className="w-full text-sm">
               <thead className="bg-gray-900 border-b border-gray-800">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium text-gray-400">Name</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-400">Type</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-400">Capacity</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-400">Bookings</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-400">
+                    Name
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-400">
+                    Type
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-400">
+                    Capacity
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-400">
+                    Bookings
+                  </th>
                   {canManage && <th className="px-4 py-3" />}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
                 {locations.map((loc) => {
                   const count = assignments.filter(
-                    (a) => a.venue_location_id === loc.id && a.status === "active"
+                    (a) =>
+                      a.venue_location_id === loc.id && a.status === "active",
                   ).length;
                   return (
                     <tr key={loc.id} className="hover:bg-gray-900/50">
                       <td className="px-4 py-3 text-white">{loc.name}</td>
-                      <td className="px-4 py-3 text-gray-300 capitalize">{loc.location_type}</td>
-                      <td className="px-4 py-3 text-gray-300">{loc.capacity ?? "—"}</td>
+                      <td className="px-4 py-3 text-gray-300 capitalize">
+                        {loc.location_type}
+                      </td>
+                      <td className="px-4 py-3 text-gray-300">
+                        {loc.capacity ?? "—"}
+                      </td>
                       <td className="px-4 py-3 text-gray-300">{count}</td>
                       {canManage && (
                         <td className="px-4 py-3 text-right space-x-1">
-                          <Button variant="ghost" size="sm" onClick={() => openEditLocation(loc)}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditLocation(loc)}
+                          >
                             Edit
                           </Button>
                           <Button
@@ -447,9 +559,12 @@ export default function VenuePage() {
       <Dialog open={locationDialogOpen} onOpenChange={setLocationDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingLocation ? "Edit Location" : "New Location"}</DialogTitle>
+            <DialogTitle>
+              {editingLocation ? "Edit Location" : "New Location"}
+            </DialogTitle>
             <DialogDescription>
-              Rooms, booths, tables, stages, labs, and desks can all be booked by assignments.
+              Rooms, booths, tables, stages, labs, and desks can all be booked
+              by assignments.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -457,17 +572,24 @@ export default function VenuePage() {
               <label className="block text-sm text-gray-300 mb-1">Name</label>
               <Input
                 value={locationForm.name}
-                onChange={(e) => setLocationForm({ ...locationForm, name: e.target.value })}
+                onChange={(e) =>
+                  setLocationForm({ ...locationForm, name: e.target.value })
+                }
                 placeholder="e.g. Main Hall Table 3"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm text-gray-300 mb-1">Type</label>
-                <select className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
+                <select
+                  className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
                   value={locationForm.location_type}
                   onChange={(e) =>
-                    setLocationForm({ ...locationForm, location_type: e.target.value as LocationFormState["location_type"] })
+                    setLocationForm({
+                      ...locationForm,
+                      location_type: e.target
+                        .value as LocationFormState["location_type"],
+                    })
                   }
                 >
                   {LOCATION_TYPES.map((t) => (
@@ -478,53 +600,89 @@ export default function VenuePage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Capacity</label>
+                <label className="block text-sm text-gray-300 mb-1">
+                  Capacity
+                </label>
                 <Input
                   type="number"
                   min={1}
                   value={locationForm.capacity}
-                  onChange={(e) => setLocationForm({ ...locationForm, capacity: e.target.value })}
+                  onChange={(e) =>
+                    setLocationForm({
+                      ...locationForm,
+                      capacity: e.target.value,
+                    })
+                  }
                   placeholder="Optional"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Description</label>
+              <label className="block text-sm text-gray-300 mb-1">
+                Description
+              </label>
               <Textarea
                 value={locationForm.description}
-                onChange={(e) => setLocationForm({ ...locationForm, description: e.target.value })}
+                onChange={(e) =>
+                  setLocationForm({
+                    ...locationForm,
+                    description: e.target.value,
+                  })
+                }
                 placeholder="Optional"
                 rows={2}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setLocationDialogOpen(false)}>
+            <Button
+              variant="ghost"
+              onClick={() => setLocationDialogOpen(false)}
+            >
               Cancel
             </Button>
-            <Button onClick={saveLocation} disabled={locationSaving || !locationForm.name.trim()}>
-              {locationSaving ? "Saving..." : editingLocation ? "Save Changes" : "Create Location"}
+            <Button
+              onClick={saveLocation}
+              disabled={locationSaving || !locationForm.name.trim()}
+            >
+              {locationSaving
+                ? "Saving..."
+                : editingLocation
+                  ? "Save Changes"
+                  : "Create Location"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Assignment create/edit dialog */}
-      <Dialog open={assignmentDialogOpen} onOpenChange={setAssignmentDialogOpen}>
+      <Dialog
+        open={assignmentDialogOpen}
+        onOpenChange={setAssignmentDialogOpen}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingAssignment ? "Edit Assignment" : "New Assignment"}</DialogTitle>
+            <DialogTitle>
+              {editingAssignment ? "Edit Assignment" : "New Assignment"}
+            </DialogTitle>
             <DialogDescription>
-              Overlapping bookings for the same location are rejected automatically.
+              Overlapping bookings for the same location are rejected
+              automatically.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Location</label>
-              <select className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
+              <label className="block text-sm text-gray-300 mb-1">
+                Location
+              </label>
+              <select
+                className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
                 value={assignmentForm.venue_location_id}
                 onChange={(e) =>
-                  setAssignmentForm({ ...assignmentForm, venue_location_id: e.target.value })
+                  setAssignmentForm({
+                    ...assignmentForm,
+                    venue_location_id: e.target.value,
+                  })
                 }
               >
                 {locations.map((loc) => (
@@ -535,13 +693,17 @@ export default function VenuePage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Assigning</label>
-              <select className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
+              <label className="block text-sm text-gray-300 mb-1">
+                Assigning
+              </label>
+              <select
+                className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
                 value={assignmentForm.assignable_type}
                 onChange={(e) =>
                   setAssignmentForm({
                     ...assignmentForm,
-                    assignable_type: e.target.value as AssignmentFormState["assignable_type"],
+                    assignable_type: e.target
+                      .value as AssignmentFormState["assignable_type"],
                   })
                 }
               >
@@ -555,9 +717,15 @@ export default function VenuePage() {
             {assignmentForm.assignable_type === "team" && (
               <div>
                 <label className="block text-sm text-gray-300 mb-1">Team</label>
-                <select className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
+                <select
+                  className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
                   value={assignmentForm.team_id}
-                  onChange={(e) => setAssignmentForm({ ...assignmentForm, team_id: e.target.value })}
+                  onChange={(e) =>
+                    setAssignmentForm({
+                      ...assignmentForm,
+                      team_id: e.target.value,
+                    })
+                  }
                 >
                   <option value="">Select a team...</option>
                   {teams.map((t) => (
@@ -570,22 +738,32 @@ export default function VenuePage() {
             )}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Starts at</label>
+                <label className="block text-sm text-gray-300 mb-1">
+                  Starts at
+                </label>
                 <Input
                   type="datetime-local"
                   value={assignmentForm.starts_at}
                   onChange={(e) =>
-                    setAssignmentForm({ ...assignmentForm, starts_at: e.target.value })
+                    setAssignmentForm({
+                      ...assignmentForm,
+                      starts_at: e.target.value,
+                    })
                   }
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Ends at</label>
+                <label className="block text-sm text-gray-300 mb-1">
+                  Ends at
+                </label>
                 <Input
                   type="datetime-local"
                   value={assignmentForm.ends_at}
                   onChange={(e) =>
-                    setAssignmentForm({ ...assignmentForm, ends_at: e.target.value })
+                    setAssignmentForm({
+                      ...assignmentForm,
+                      ends_at: e.target.value,
+                    })
                   }
                 />
               </div>
@@ -601,14 +779,21 @@ export default function VenuePage() {
                 Cancel Booking
               </Button>
             )}
-            <Button variant="ghost" onClick={() => setAssignmentDialogOpen(false)}>
+            <Button
+              variant="ghost"
+              onClick={() => setAssignmentDialogOpen(false)}
+            >
               Close
             </Button>
             <Button
               onClick={saveAssignment}
               disabled={assignmentSaving || !assignmentForm.venue_location_id}
             >
-              {assignmentSaving ? "Saving..." : editingAssignment ? "Save Changes" : "Book"}
+              {assignmentSaving
+                ? "Saving..."
+                : editingAssignment
+                  ? "Save Changes"
+                  : "Book"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -623,14 +808,22 @@ export default function VenuePage() {
           <DialogHeader>
             <DialogTitle>Delete “{deleteLocationTarget?.name}”?</DialogTitle>
             <DialogDescription>
-              This removes the location and all of its bookings. This action cannot be undone.
+              This removes the location and all of its bookings. This action
+              cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setDeleteLocationTarget(null)}>
+            <Button
+              variant="ghost"
+              onClick={() => setDeleteLocationTarget(null)}
+            >
               Cancel
             </Button>
-            <Button variant="danger" onClick={handleDeleteLocation} disabled={deleteLocationSaving}>
+            <Button
+              variant="danger"
+              onClick={handleDeleteLocation}
+              disabled={deleteLocationSaving}
+            >
               {deleteLocationSaving ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { eventMembersController } from "./event-members.controller.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { requireGlobalRole } from "../../middleware/role.middleware.js";
-import { requireEventRole } from "../../middleware/event-role.middleware.js";
+import { requireEventRole, requireEventRoleOrAdmin } from "../../middleware/event-role.middleware.js";
 
 const router = Router({ mergeParams: true });
 
@@ -15,7 +15,9 @@ router.get(
 router.get(
   "/",
   authenticate,
-  requireEventRole("organizer"),
+  // Any event member can view the directory; platform admins also pass so
+  // they can manage events they aren't personally members of.
+  requireEventRoleOrAdmin("organizer", "participant", "volunteer", "judge"),
   eventMembersController.listMembers
 );
 

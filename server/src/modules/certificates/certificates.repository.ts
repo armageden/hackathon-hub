@@ -65,10 +65,13 @@ export const certificatesRepository = {
     metadata: Record<string, any> = {}
   ) {
     const verificationCode = crypto.randomBytes(16).toString("hex");
+    // ON CONFLICT must name the unique index from migration 016
+    // idx_certificates_event_user_type on (event_id, user_id, certificate_type).
     const result = await pool.query(
       `INSERT INTO certificates (event_id, user_id, certificate_type, status, verification_code, metadata)
        VALUES ($1, $2, $3, 'eligible', $4, $5)
-       ON CONFLICT DO NOTHING
+       ON CONFLICT (event_id, user_id, certificate_type)
+       DO NOTHING
        RETURNING *`,
       [eventId, userId, certificateType, verificationCode, JSON.stringify(metadata)]
     );
@@ -118,7 +121,7 @@ export const certificatesRepository = {
         await client.query(
           `INSERT INTO certificates (event_id, user_id, certificate_type, status, verification_code)
            VALUES ($1, $2, 'attendance', 'eligible', $3)
-           ON CONFLICT DO NOTHING`,
+           ON CONFLICT (event_id, user_id, certificate_type) DO NOTHING`,
           [eventId, row.user_id, code]
         );
         created++;

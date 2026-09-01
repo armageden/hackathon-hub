@@ -12,6 +12,7 @@ import {
   getTechTags,
   deleteTeamByAdmin,
   forceJoinTeam,
+  autoAssignTeams,
 } from "./teams.api";
 import type { Team, ParticipantProfile, TechTag } from "./teams.types";
 import { useEventRole } from "../../hooks/useEventRole";
@@ -59,6 +60,7 @@ export default function TeamsPage() {
   const [assignTarget, setAssignTarget] = useState<Team | null>(null);
   const [assignUserId, setAssignUserId] = useState("");
   const [assigning, setAssigning] = useState(false);
+  const [assigningRun, setAssigningRun] = useState(false);
 
   const [removeTarget, setRemoveTarget] = useState<{ team: Team; userId: string; name: string } | null>(null);
   const [removing, setRemoving] = useState(false);
@@ -70,6 +72,26 @@ export default function TeamsPage() {
   function showMsg(type: "success" | "error", text: string) {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 4000);
+  }
+
+  async function handleAutoAssign() {
+    setAssigningRun(true);
+    try {
+      const result = await autoAssignTeams(EVENT_ID);
+      if (result.teams_created === 0 && result.participants_assigned === 0) {
+        showMsg("success", "No solo participants left to assign — everyone already has a team.");
+      } else {
+        showMsg(
+          "success",
+          `Created ${result.teams_created} team${result.teams_created === 1 ? "" : "s"} and assigned ${result.participants_assigned} participant${result.participants_assigned === 1 ? "" : "s"}.`
+        );
+      }
+      await fetchTeams();
+    } catch (err) {
+      showMsg("error", err instanceof Error ? err.message : "Auto-assign failed.");
+    } finally {
+      setAssigningRun(false);
+    }
   }
 
   async function fetchTeams() {
@@ -292,7 +314,18 @@ export default function TeamsPage() {
   return (
     <div className="min-h-screen bg-gray-950 text-white px-4 py-8">
       <div className="max-w-5xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">Teams</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-bold">Teams</h1>
+          {isOrganizer && (
+            <button
+              onClick={handleAutoAssign}
+              disabled={assigningRun}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-600/50 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              {assigningRun ? "Assigning…" : "Auto-assign Solo Participants"}
+            </button>
+          )}
+        </div>
 
         {message && (
           <div

@@ -1,6 +1,7 @@
 import { teamsRepository } from "./teams.repository.js";
 import { participantsRepository } from "../participants/participants.repository.js";
 import { eventMembersRepository } from "../event-members/event-members.repository.js";
+import { notificationsService } from "../notifications/notifications.service.js";
 import { NotFoundError, ConflictError, ValidationError, AuthorizationError } from "../../middleware/error.middleware.js";
 
 export const teamsService = {
@@ -182,6 +183,15 @@ export const teamsService = {
     const application = await teamsRepository.createApplication(teamId, profile.id, message || null);
     if (!application) throw new ConflictError("You already have a pending application to this team");
 
+    // Best-effort notify the team owner — never fail the apply over a notification.
+    try {
+      const requester = await participantsRepository.findProfileById(profile.id);
+      const requesterName = requester?.full_name ?? "A participant";
+      await notificationsService.notifyTeamRequest(eventId, team.created_by, requesterName, team.name);
+    } catch (err) {
+      console.error("[teams.applyToTeam] notification failed:", err);
+    }
+
     return application;
   },
 
@@ -226,6 +236,22 @@ export const teamsService = {
     }
 
     const updated = await teamsRepository.updateApplication(applicationId, status, reviewerId);
+
+    // Best-effort notify the applicant of the decision.
+    try {
+      const applicantProfile = await participantsRepository.findProfileById(application.participant_profile_id);
+      if (applicantProfile) {
+        await notificationsService.notifyTeamRequestResult(
+          eventId,
+          applicantProfile.user_id,
+          team.name,
+          status === "approved"
+        );
+      }
+    } catch (err) {
+      console.error("[teams.reviewApplication] notification failed:", err);
+    }
+
     return updated;
   },
 

@@ -13,6 +13,15 @@ export const adminController = {
     }
   },
 
+  async listUsers(req: Request, res: Response, next: NextFunction) {
+    try {
+      const users = await adminService.listUsers();
+      res.json({ success: true, data: { users } });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async grantAdmin(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       if (!req.user) throw new ValidationError("Authentication required");

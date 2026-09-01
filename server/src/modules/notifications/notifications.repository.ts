@@ -25,10 +25,11 @@ export const notificationsRepository = {
     return result.rows[0].count;
   },
 
-  async markAsRead(notificationId: string, userId: string) {
+  async markAsRead(eventId: string, notificationId: string, userId: string) {
+    // Event-scoped: a notification is only readable/mutable through its own event.
     const result = await pool.query(
-      "UPDATE notifications SET read_at = NOW() WHERE id = $1 AND user_id = $2 AND read_at IS NULL RETURNING *",
-      [notificationId, userId]
+      "UPDATE notifications SET read_at = NOW() WHERE event_id = $1 AND id = $2 AND user_id = $3 AND read_at IS NULL RETURNING *",
+      [eventId, notificationId, userId]
     );
     return result.rows[0] || null;
   },
@@ -40,10 +41,10 @@ export const notificationsRepository = {
     );
   },
 
-  async delete(notificationId: string, userId: string) {
+  async delete(eventId: string, notificationId: string, userId: string) {
     const result = await pool.query(
-      "DELETE FROM notifications WHERE id = $1 AND user_id = $2 RETURNING id",
-      [notificationId, userId]
+      "DELETE FROM notifications WHERE event_id = $1 AND id = $2 AND user_id = $3 RETURNING id",
+      [eventId, notificationId, userId]
     );
     return result.rowCount !== null && result.rowCount > 0;
   },

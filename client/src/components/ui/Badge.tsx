@@ -48,7 +48,7 @@ Badge.displayName = 'Badge';
 export { Badge };
 
 // Status badge helper
-export function StatusBadge({ status }: { status: string }) {
+export function StatusBadge({ status, label: labelOverride }: { status: string; label?: string }) {
   const statusVariants: Record<string, BadgeProps['variant']> = {
     available: 'success',
     checked_out: 'warning',
@@ -79,7 +79,7 @@ export function StatusBadge({ status }: { status: string }) {
   };
 
   const variant = statusVariants[status] || 'neutral';
-  const label = status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const label = labelOverride ?? status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
   return <Badge variant={variant}>{label}</Badge>;
 }

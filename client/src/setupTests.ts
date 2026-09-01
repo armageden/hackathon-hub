@@ -17,6 +17,17 @@ if (domWindow) {
 import { afterEach, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 
+// jsdom doesn't implement ResizeObserver (VenuePage uses it to size the
+// venue map canvas to its container). Stub it with a no-op recorder.
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+if (typeof globalThis.ResizeObserver === "undefined") {
+  (globalThis as Record<string, unknown>).ResizeObserver = ResizeObserverStub;
+}
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();

@@ -116,3 +116,16 @@ export async function removeMember(eventId: string, teamId: string, userId: stri
     method: "DELETE",
   });
 }
+
+export interface AutoAssignResult {
+  teams_created: number;
+  participants_assigned: number;
+}
+
+export async function autoAssignTeams(eventId: string, maxSize: number = 5): Promise<AutoAssignResult> {
+  return apiRequest("/events/" + eventId + "/teams/auto-assign", {
+    method: "POST",
+    body: JSON.stringify({ max_size: maxSize }),
+  });
+}
+

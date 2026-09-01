@@ -1,17 +1,74 @@
 'use client';
 
-import { useEvent, useAuth } from '@/app/providers';
+import { useState } from 'react';
+import { useEvent, useAuth, type Event } from '@/app/providers';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Plus, Users, ArrowRight } from 'lucide-react';
+import { Calendar, Plus, Users, ArrowRight, Pencil, Trash2 } from 'lucide-react';
 import { formatDate, formatDateRange, formatStatus } from '@/lib/formatters';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/Dialog';
+import { updateEvent, deleteEvent } from './events.api';
 
 export default function EventsPage() {
-  const { events, loading, setEventId } = useEvent();
+  const { events, loading, setEventId, refetch } = useEvent();
   const { user } = useAuth();
   const navigate = useNavigate();
   // Mirrors the server rule: POST /events requires the global admin role
   // (temporary admins included while their window is open).
   const isAdmin = user?.global_role === 'admin';
+
+  const [renameTarget, setRenameTarget] = useState<Event | null>(null);
+  const [renameName, setRenameName] = useState('');
+  const [renameError, setRenameError] = useState('');
+  const [renaming, setRenaming] = useState(false);
+
+  const [deleteTarget, setDeleteTarget] = useState<Event | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [actionError, setActionError] = useState('');
+
+  async function handleRename(e: React.FormEvent) {
+    e.preventDefault();
+    if (!renameTarget) return;
+    if (!renameName.trim()) {
+      setRenameError('Event name is required.');
+      return;
+    }
+    setRenaming(true);
+    setRenameError('');
+    try {
+      await updateEvent(renameTarget.id, { name: renameName.trim() });
+      setRenameTarget(null);
+      await refetch();
+    } catch (err) {
+      setRenameError(err instanceof Error ? err.message : 'Could not rename the event.');
+    } finally {
+      setRenaming(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setActionError('');
+    try {
+      await deleteEvent(deleteTarget.id);
+      setDeleteTarget(null);
+      await refetch();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not delete the event.');
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -86,6 +143,32 @@ export default function EventsPage() {
                   }`}>
                     {formatStatus(event.status)}
                   </span>
+                  {isAdmin && (
+                    <span className="flex items-center gap-1 ml-1 flex-shrink-0">
+                      <button
+                        aria-label={`Rename ${event.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRenameTarget(event);
+                          setRenameName(event.name);
+                          setRenameError('');
+                        }}
+                        className="p-1.5 rounded-md text-gray-500 hover:text-indigo-400 hover:bg-gray-800 transition-colors"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        aria-label={`Delete ${event.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTarget(event);
+                        }}
+                        className="p-1.5 rounded-md text-gray-500 hover:text-red-400 hover:bg-gray-800 transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </span>
+                  )}
                 </div>
 
                 {event.description && (
@@ -124,6 +207,67 @@ export default function EventsPage() {
           ))}
         </div>
       )}
+
+      {actionError && (
+        <p className="mt-4 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2" role="alert">
+          {actionError}
+        </p>
+      )}
+
+      {/* Rename dialog */}
+      <Dialog open={renameTarget !== null} onOpenChange={(open) => !open && setRenameTarget(null)}>
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle>Rename Event</DialogTitle>
+            <DialogDescription>Update the display name of this event.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleRename} className="space-y-4">
+            {renameError && (
+              <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                {renameError}
+              </p>
+            )}
+            <div>
+              <label className="block text-sm text-gray-300 mb-1" htmlFor="event-name">Event name</label>
+              <Input
+                id="event-name"
+                value={renameName}
+                onChange={(e) => setRenameName(e.target.value)}
+                placeholder="Event name"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" type="button" onClick={() => setRenameTarget(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={renaming}>
+                {renaming ? 'Saving…' : 'Save Changes'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle>Delete “{deleteTarget?.name}”?</DialogTitle>
+            <DialogDescription>
+              This permanently removes the event and all of its data (members, teams, hardware,
+              bookings, projects). This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} disabled={deleting}>
+              {deleting ? 'Deleting…' : 'Delete Event'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

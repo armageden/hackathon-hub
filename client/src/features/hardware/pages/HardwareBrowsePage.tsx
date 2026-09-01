@@ -221,7 +221,14 @@ export default function HardwareBrowsePage({ eventId }: { eventId: string }) {
                           </p>
                         </div>
                       </div>
-                      <StatusBadge status={checkout.status} />
+                      <StatusBadge
+                        status={checkout.status}
+                        label={
+                          getDueState(checkout.due_at, checkout.status) === 'overdue'
+                            ? "Checked Out"
+                            : undefined
+                        }
+                      />
                     </div>
                   ))}
                 </div>

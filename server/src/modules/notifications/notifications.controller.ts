@@ -34,11 +34,13 @@ export const notificationsController = {
 
   async markAsRead(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      const eventId = p(req, "eventId");
       const notificationId = p(req, "notificationId");
+      if (!eventId) throw new ValidationError("Event ID is required");
       if (!req.user) throw new ValidationError("Authentication required");
       if (!notificationId) throw new ValidationError("Notification ID is required");
 
-      const notification = await notificationsService.markAsRead(notificationId, req.user.id);
+      const notification = await notificationsService.markAsRead(eventId, notificationId, req.user.id);
       if (!notification) throw new ValidationError("Notification not found");
       res.json({ success: true, data: { notification } });
     } catch (err) {
@@ -61,11 +63,13 @@ export const notificationsController = {
 
   async delete(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      const eventId = p(req, "eventId");
       const notificationId = p(req, "notificationId");
+      if (!eventId) throw new ValidationError("Event ID is required");
       if (!req.user) throw new ValidationError("Authentication required");
       if (!notificationId) throw new ValidationError("Notification ID is required");
 
-      const deleted = await notificationsService.delete(notificationId, req.user.id);
+      const deleted = await notificationsService.delete(eventId, notificationId, req.user.id);
       if (!deleted) throw new ValidationError("Notification not found");
       res.json({ success: true, data: { deleted: true } });
     } catch (err) {

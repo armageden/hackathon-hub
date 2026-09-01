@@ -16,6 +16,18 @@ export async function listAdmins(): Promise<AdminAccount[]> {
   return res.admins;
 }
 
+export interface PlatformUser {
+  id: string;
+  email: string;
+  full_name: string;
+  global_role: "admin" | "user";
+}
+
+export async function listUsers(): Promise<PlatformUser[]> {
+  const res = await apiRequest<{ users: PlatformUser[] }>("/admin/users");
+  return res.users;
+}
+
 export async function grantAdmin(email: string, expiresAt?: string): Promise<AdminAccount> {
   const res = await apiRequest<{ admin: AdminAccount }>("/admin/admins", {
     method: "POST",

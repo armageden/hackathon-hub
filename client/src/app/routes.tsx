@@ -19,6 +19,7 @@ import ProjectsPage from '../features/projects/ProjectsPage';
 import JudgingPage from '../features/judging/JudgingPage';
 import NotificationsPage from '../features/notifications/NotificationsPage';
 import AdminPage from '../features/admin/AdminPage';
+import MembersPage from '../features/members/MembersPage';
 import { useAuth, useEvent } from './providers';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -237,6 +238,14 @@ export const router = createBrowserRouter([
             element: (
               <ProtectedRoute>
                 <NotificationsPage />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'members',
+            element: (
+              <ProtectedRoute>
+                <MembersPage />
               </ProtectedRoute>
             ),
           },

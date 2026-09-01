@@ -10,6 +10,7 @@ const router = Router();
 router.use(authenticate, requireGlobalRole("admin"));
 
 router.get("/admins", adminController.listAdmins);
+router.get("/users", adminController.listUsers);
 router.post("/admins", adminController.grantAdmin);
 router.delete("/admins/:userId", adminController.demoteAdmin);
 

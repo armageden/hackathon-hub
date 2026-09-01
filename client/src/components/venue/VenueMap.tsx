@@ -26,6 +26,22 @@ interface VenueMapProps {
   gridSize?: number;
 }
 
+// Konva paints to a <canvas>, and canvas fillStyle/strokeStyle cannot resolve
+// CSS custom properties like `var(--color-team-1)` — invalid values fall back
+// to black. Resolve each variable to its computed hex at render time instead.
+const colorCache = new Map<string, string>();
+function resolveColor(color: string): string {
+  if (!color.startsWith("var(")) return color;
+  const cached = colorCache.get(color);
+  if (cached) return cached;
+  const name = color.slice(4, -1).trim();
+  const value =
+    getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const resolved = value || "#6366f1";
+  colorCache.set(color, resolved);
+  return resolved;
+}
+
 const LOCATION_TYPE_COLORS: Record<string, string> = {
   room: 'var(--color-venue-room)',
   booth: 'var(--color-venue-booth)',
@@ -59,7 +75,8 @@ export function VenueMap({
 }: VenueMapProps) {
   const stageScale = useMemo(() => scale, [scale]);
 
-  const getLocationColor = (type: string) => LOCATION_TYPE_COLORS[type] || 'var(--color-chart-1)';
+  const getLocationColor = (type: string) =>
+    resolveColor(LOCATION_TYPE_COLORS[type] || 'var(--color-chart-1)');
 
   const renderLocationShape = (location: VenueLocation, x: number, y: number, w: number, h: number) => {
     const shapeType = LOCATION_TYPE_SHAPES[location.location_type] || 'rect';
@@ -140,7 +157,7 @@ export function VenueMap({
           text={`Cap: ${location.capacity || 'N/A'}`}
           fontSize={10}
           fontFamily="var(--font-mono)"
-          fill="var(--color-fg-muted)"
+          fill={resolveColor('var(--color-fg-muted)')}
           align="center"
           pointerEvents="none"
         />
@@ -176,7 +193,7 @@ export function VenueMap({
             'var(--color-team-5)',
             'var(--color-team-6)',
           ];
-          const color = teamColors[index % teamColors.length];
+          const color = resolveColor(teamColors[index % teamColors.length]);
 
           return (
             <Circle
@@ -218,7 +235,7 @@ export function VenueMap({
                 <Line
                   key={`vgrid-${i}`}
                   points={[i * gridSize, 0, i * gridSize, height]}
-                  stroke="var(--color-border-subtle)"
+                  stroke={resolveColor('var(--color-border-subtle)')}
                   strokeWidth={0.5}
                   opacity={0.5}
                 />
@@ -227,7 +244,7 @@ export function VenueMap({
                 <Line
                   key={`hgrid-${i}`}
                   points={[0, i * gridSize, width, i * gridSize]}
-                  stroke="var(--color-border-subtle)"
+                  stroke={resolveColor('var(--color-border-subtle)')}
                   strokeWidth={0.5}
                   opacity={0.5}
                 />
@@ -309,7 +326,7 @@ export function Minimap({ locations, viewport, scale, onNavigate, width = 200, h
                 y={(loc.position_y || 0) * scaleY}
                 width={(loc.size_width || 100) * scaleX}
                 height={(loc.size_height || 100) * scaleY}
-                fill={LOCATION_TYPE_COLORS[location.location_type] || 'var(--color-chart-1)'}
+                fill={resolveColor(LOCATION_TYPE_COLORS[location.location_type] || 'var(--color-chart-1)')}
                 opacity={0.5}
               />
               );
@@ -320,9 +337,9 @@ export function Minimap({ locations, viewport, scale, onNavigate, width = 200, h
               y={viewport.y * scaleY}
               width={viewport.width * scaleX}
               height={viewport.height * scaleY}
-              stroke="var(--color-chart-1)"
+              stroke={resolveColor('var(--color-chart-1)')}
               strokeWidth={2}
-              fill="var(--color-chart-1)"
+              fill={resolveColor('var(--color-chart-1)')}
               opacity={0.2}
             />
           </Layer>

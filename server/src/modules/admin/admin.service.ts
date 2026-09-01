@@ -49,6 +49,10 @@ export const adminService = {
     return adminRepository.listAdmins();
   },
 
+  async listUsers() {
+    return adminRepository.listUsers();
+  },
+
   async demoteAdmin(actorId: string, userId: string): Promise<AdminAccount> {
     if (actorId === userId) {
       throw new ConflictError("You cannot demote your own account");

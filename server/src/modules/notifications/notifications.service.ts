@@ -9,16 +9,16 @@ export const notificationsService = {
     return notificationsRepository.getUnreadCount(eventId, userId);
   },
 
-  async markAsRead(notificationId: string, userId: string) {
-    return notificationsRepository.markAsRead(notificationId, userId);
+  async markAsRead(eventId: string, notificationId: string, userId: string) {
+    return notificationsRepository.markAsRead(eventId, notificationId, userId);
   },
 
   async markAllAsRead(eventId: string, userId: string) {
     return notificationsRepository.markAllAsRead(eventId, userId);
   },
 
-  async delete(notificationId: string, userId: string) {
-    return notificationsRepository.delete(notificationId, userId);
+  async delete(eventId: string, notificationId: string, userId: string) {
+    return notificationsRepository.delete(eventId, notificationId, userId);
   },
 
   async notifyTeamRequest(eventId: string, organizerId: string, requesterName: string, teamName: string) {
